@@ -4,8 +4,27 @@ A desktop interface for the Hoosat command-line tools. It's a set of forms on to
 `htnwallet` and `htnctl`, and contains no wallet logic of its own. Keys, signing and sending
 are all done by `htnwallet`, unmodified.
 
-Version 1.0.0. It creates and restores wallets, shows balances and addresses, sends, compounds,
-and shows transaction history. Use it at your own risk: see the licence below.
+Version 1.0.0, for Windows and Linux.
+
+- **Create or restore a wallet** with the Setup Wizard: a new 24-word seed phrase, or restore from a
+  seed phrase, an HTN web wallet backup, or a private key.
+- **See your balance** per address, with your own labels, and add new addresses.
+- **Send** to another wallet, or **transfer between your own addresses**.
+- **Auto-compound** an address's coins, and see **transaction history** from the HTN explorer.
+
+Use it at your own risk: see the licence below.
+
+## Screenshots
+
+| Wallet | Send |
+|---|---|
+| ![Wallet page: balance and addresses with labels](docs/screenshots/wallet.png) | ![Send to another wallet](docs/screenshots/send.png) |
+| **Transfer between your addresses** | **Confirm before sending** |
+| ![Transfer between your own addresses](docs/screenshots/transfer.png) | ![Confirm send, with the wallet password](docs/screenshots/send-confirm.png) |
+| **Creating a wallet** | **Your seed phrase** |
+| ![Setup Wizard: create, restore or use an existing wallet](docs/screenshots/create-1-welcome.png) | ![The 24-word seed phrase made by htnwallet](docs/screenshots/create-3-seed.png) |
+
+The pictures use sample data, not a real wallet.
 
 ## How it works
 
@@ -25,6 +44,23 @@ This app ──> htnwallet ──> wallet daemon ──> HTND node
 Put `guiwallet.exe` in the same folder as `htnwallet.exe` and `htnctl.exe`, or choose their
 folder in Settings. The app looks only in those two places, never on the system `PATH`.
 
+### On Linux
+
+Unpack `guiwallet-linux-x86_64.tar.gz`, put `htnwallet` and `htnctl` in the `guiwallet` folder beside
+the `guiwallet` program, and run `./guiwallet`. Run `sh install.sh` once to add it to the
+applications menu. It needs Ubuntu 22.04, Debian 12, Mint 21, Fedora 36 or newer (x86-64).
+
+If it doesn't open on Ubuntu or Debian, install the one library Qt needs that isn't there by
+default:
+
+```sh
+sudo apt install libxcb-cursor0
+```
+
+Settings are kept in `~/.config/guiwallet`, and the wallet file is htnwallet's usual
+`~/.htnwallet/hoosat-mainnet/keys.json`. Desktops without a tray area (GNOME without an extension)
+simply close the app when the window is closed.
+
 ## Building it
 
 You need Windows and Python 3.13.
@@ -35,6 +71,15 @@ powershell -ExecutionPolicy Bypass -File build.ps1
 
 This creates a private `.venv`, installs the pinned dependencies, runs the tests, and produces
 `dist\guiwallet.exe`.
+
+For Linux, with Docker installed (from Linux, or from Windows with Docker Desktop and Git Bash):
+
+```sh
+sh build-linux.sh
+```
+
+This builds inside Ubuntu 22.04, runs the tests there, and produces
+`dist/guiwallet-linux-x86_64.tar.gz`.
 
 ## Developing
 
