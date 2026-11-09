@@ -16,13 +16,34 @@ Use it at your own risk: see the licence below.
 
 ## Screenshots
 
-| Wallet | Send |
-|---|---|
-| ![Wallet page: balance and addresses with labels](docs/screenshots/wallet.png) | ![Send to another wallet](docs/screenshots/send.png) |
-| **Transfer between your addresses** | **Confirm before sending** |
-| ![Transfer between your own addresses](docs/screenshots/transfer.png) | ![Confirm send, with the wallet password](docs/screenshots/send-confirm.png) |
-| **Creating a wallet** | **Your seed phrase** |
-| ![Setup Wizard: create, restore or use an existing wallet](docs/screenshots/create-1-welcome.png) | ![The 24-word seed phrase made by htnwallet](docs/screenshots/create-3-seed.png) |
+### Wallet
+Your balance, each address with its own label, and one-click compounding.
+
+![Wallet page: balance and addresses with labels](docs/screenshots/wallet.png)
+
+### Send
+Send to another wallet. Every amount is checked against what the address holds.
+
+![Send to another wallet](docs/screenshots/send.png)
+
+### Transfer between your addresses
+Move coins from one of your addresses to another.
+
+![Transfer between your own addresses](docs/screenshots/transfer.png)
+
+### Confirm before sending
+Check the address and amount, then enter your wallet password.
+
+<img src="docs/screenshots/send-confirm.png" alt="Confirm send, with the wallet password" width="625">
+
+### Creating a wallet
+The Setup Wizard opens the first time: create a new wallet, restore one, or use the one you already have.
+
+![Setup Wizard: create, restore or use an existing wallet](docs/screenshots/create-1-welcome.png)
+
+htnwallet makes the 24-word seed phrase; the app shows it to write down, then checks three of the words.
+
+![The 24-word seed phrase made by htnwallet](docs/screenshots/create-3-seed.png)
 
 The pictures use sample data, not a real wallet.
 
