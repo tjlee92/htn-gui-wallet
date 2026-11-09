@@ -1,0 +1,12 @@
+[project]
+name = "guiwallet"
+version = "1.0.0"
+description = "Desktop interface for the Hoosat htnwallet and htnctl command-line tools"
+requires-python = ">=3.12"
+readme = "README.md"
+license = "GPL-3.0-or-later"
+license-files = ["LICENSE", "THIRD-PARTY-NOTICES.md"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]

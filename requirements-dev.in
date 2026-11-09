@@ -1,0 +1,4 @@
+# What is needed to test and build the app.
+-c requirements.txt
+pytest
+pyinstaller

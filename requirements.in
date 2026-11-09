@@ -1,0 +1,4 @@
+# What the app needs to run. Edit this, then regenerate requirements.txt (see README).
+PySide6-Essentials
+psutil  # Finds which process owns the daemon's port
+segno  # Draws the QR codes on the Receive screen

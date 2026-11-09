@@ -1,0 +1,15 @@
+﻿.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+build/
+dist/
+# Local copies of the wallet tools, for running from source
+tools/
+
+# Private notes and local working files, not for the public repo
+HANDOFF.md
+mockups/
+scripts/dev-tests/*-scratch/
+scripts/dev-tests/fakewallet/bin/
+*.log
