@@ -47,6 +47,37 @@ htnwallet makes the 24-word seed phrase; the app shows it to write down, then ch
 
 The pictures use sample data, not a real wallet.
 
+## Privacy and your data
+
+Everything you type into the app stays on your computer. The app has no servers, no accounts,
+no tracking and no analytics.
+
+- **Your password, seed phrase and private key are never saved to disk by the app and never
+  sent anywhere.** They're handed straight to `htnwallet` on your computer. Only `htnwallet`
+  keeps your wallet, in its own encrypted wallet file.
+- **What the app saves**, in its settings folder on your computer only: your settings, your
+  address labels, a copy of your transaction history, the address and amount of a send while it's
+  in progress, and htnwallet's start-up log. None of it contains a password, seed phrase or key.
+- **What goes over the internet:**
+  - `htnwallet` talks to the Hoosat node you choose in Settings, to read your balance and send
+    your transactions. Transactions are public on the Hoosat network.
+  - Transaction History asks the HTN explorer you choose (EU or NZ) for your addresses'
+    transactions. Addresses and transactions are public on the network, but the explorer can see
+    that one computer asked about these addresses. It's only asked while the Transaction History
+    page is open; if you'd rather it wasn't asked at all, don't open that page.
+  - Nothing else. There's no update check, and nothing is sent to the app's authors. (The tray
+    menu's HTN Explorer links just open the explorer website in your browser.)
+
+Keep in mind:
+
+- **Copy words** puts your seed phrase on the clipboard, where other programs can read it.
+  Writing it on paper is safer.
+- The wallet password is passed to `htnwallet` on its command line, so other programs running
+  under your Windows or Linux account may see it while a send runs, and for as long as an
+  auto-compound keeps running (see Known limitation below).
+- **Debug details** in Settings shows the command sent to `htnwallet`, with the password always
+  hidden. It's off unless you switch it on.
+
 ## How it works
 
 ```
