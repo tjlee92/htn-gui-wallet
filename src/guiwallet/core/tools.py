@@ -69,6 +69,30 @@ _EXIT_WAIT_SECONDS = 2
 # Stops a console window from flashing up each time a command runs on Windows.
 _HIDDEN_WINDOW = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
 
+if sys.platform.startswith("linux"):
+    _LIBC = ctypes.CDLL(None, use_errno=True)
+    _PR_SET_PDEATHSIG = 1
+    _SIGKILL = 9
+
+    def _die_with_this_app() -> None:
+        """Runs in the new process before htnwallet starts: Linux kills it when its starter goes away.
+
+        Linux ties this to the starting thread, not the whole app, so it's only used where that
+        thread waits for the command or is the main thread.
+        """
+        _LIBC.prctl(_PR_SET_PDEATHSIG, _SIGKILL)
+else:
+    _die_with_this_app = None
+
+
+def _linux_tie(thread_waits: bool):
+    """What to pass as preexec_fn: the Linux tie, when it can't end the command too early."""
+    if _die_with_this_app is None:
+        return None
+    if thread_waits or threading.current_thread() is threading.main_thread():
+        return _die_with_this_app
+    return None
+
 
 class ToolError(Exception):
     """A tool could not be run. The message never contains the command's arguments."""
@@ -187,6 +211,8 @@ def start_in_background(
 def _end_with_this_app(process: subprocess.Popen) -> int | None:
     """Have Windows end the process if this app dies, even in a crash. Returns a handle to close later.
 
+    On Linux the same is done with `_linux_tie` when the process starts.
+
     Without this, a command left behind by a crash carries on by itself with nobody watching it.
     """
     if sys.platform != "win32":
@@ -293,6 +319,7 @@ def start_tied(
             errors="replace",
             cwd=tool_path.parent,
             creationflags=_HIDDEN_WINDOW,
+            preexec_fn=_linux_tie(thread_waits=False),
         )
     # "from None" matters: Python's original errors include the full command line.
     except OSError as error:
@@ -336,6 +363,7 @@ def run_watched(
             encoding="utf-8",
             errors="replace",
             creationflags=_HIDDEN_WINDOW,
+            preexec_fn=_linux_tie(thread_waits=True),
         )
     # "from None" matters: Python's original errors include the full command line.
     except OSError as error:

@@ -2,6 +2,7 @@
 # doesn't use, which makes the file much smaller. If a future screen needs one of them
 # (images or charts, for example), take it off these lists.
 
+import sys
 from pathlib import Path
 
 ROOT = Path(SPECPATH).parent
@@ -32,11 +33,12 @@ UNUSED_FILES = (
     "/tls/",
     "/networkinformation/",
     "/generic/",
-    "/platforminputcontexts/",
     "qdirect2d",
     "qminimal",
-    "qoffscreen",
 )
+if sys.platform == "win32":
+    # Linux keeps these: input methods (accents, other alphabets) and the screen-less mode its tests use.
+    UNUSED_FILES += ("/platforminputcontexts/", "qoffscreen")
 
 
 def wanted(entry):
@@ -62,6 +64,6 @@ exe = EXE(
     a.datas,
     name="guiwallet",
     console=False,
-    icon=str(ROOT / "packaging" / "guiwallet.ico"),
+    icon=str(ROOT / "packaging" / "guiwallet.ico") if sys.platform == "win32" else None,
     upx=False,  # UPX shrinks files further but makes antivirus false alarms more likely.
 )

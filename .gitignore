@@ -12,4 +12,5 @@ HANDOFF.md
 mockups/
 scripts/dev-tests/*-scratch/
 scripts/dev-tests/fakewallet/bin/
+scripts/dev-tests/fakewallet/bin-linux/
 *.log

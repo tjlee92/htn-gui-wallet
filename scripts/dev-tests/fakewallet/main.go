@@ -51,7 +51,7 @@ func writeKeys(kind string) {
 
 // Addresses made by new-address, kept beside the binary so show-addresses lists them.
 func addedAddresses() []string {
-	data, _ := os.ReadFile(os.Args[0] + "/../new-addresses.txt")
+	data, _ := os.ReadFile(filepath.Join(filepath.Dir(os.Args[0]), "new-addresses.txt"))
 	var found []string
 	for _, line := range strings.Split(string(data), "\n") {
 		if line = strings.TrimSpace(line); line != "" {
@@ -93,7 +93,7 @@ const (
 )
 
 func main() {
-	if log, err := os.OpenFile(os.Args[0]+"/../commands.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644); err == nil {
+	if log, err := os.OpenFile(filepath.Join(filepath.Dir(os.Args[0]), "commands.log"), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644); err == nil {
 		fmt.Fprintln(log, os.Args[1])
 		log.Close()
 	}
@@ -134,7 +134,7 @@ func main() {
 		}
 		fmt.Println("\nNote: the above are only addresses that were manually created by the 'new-address' command.")
 	case "send":
-		if log, err := os.OpenFile(os.Args[0]+"/../send-args.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644); err == nil {
+		if log, err := os.OpenFile(filepath.Join(filepath.Dir(os.Args[0]), "send-args.log"), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644); err == nil {
 			fmt.Fprintln(log, strings.Join(os.Args[1:], "\n"))
 			log.Close()
 		}
@@ -170,7 +170,7 @@ func main() {
 			os.Exit(1)
 		}
 	case "auto-compound":
-		if log, err := os.OpenFile(os.Args[0]+"/../compound-args.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644); err == nil {
+		if log, err := os.OpenFile(filepath.Join(filepath.Dir(os.Args[0]), "compound-args.log"), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644); err == nil {
 			fmt.Fprintln(log, strings.Join(os.Args[1:], "\n"))
 			log.Close()
 		}
@@ -206,7 +206,7 @@ func main() {
 		requireDaemon()
 		added := addedAddresses()
 		address := fmt.Sprintf("hoosat:qp%02dnew", len(added)+1) + strings.Repeat("x7m2p9qz", 8)
-		f, _ := os.OpenFile(os.Args[0]+"/../new-addresses.txt", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
+		f, _ := os.OpenFile(filepath.Join(filepath.Dir(os.Args[0]), "new-addresses.txt"), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
 		fmt.Fprintln(f, address)
 		f.Close()
 		fmt.Printf("New address:\n%s\n", address)
