@@ -1,4 +1,4 @@
-# PyInstaller build recipe for guiwallet.exe. It leaves out the parts of Qt this app
+# PyInstaller build recipe for htnwalletgui.exe (Windows) and htnwalletgui (Linux). It leaves out the parts of Qt this app
 # doesn't use, which makes the file much smaller. If a future screen needs one of them
 # (images or charts, for example), take it off these lists.
 
@@ -62,7 +62,7 @@ exe = EXE(
     a.scripts,
     a.binaries,
     a.datas,
-    name="guiwallet",
+    name="htnwalletgui",
     console=False,
     icon=str(ROOT / "packaging" / "guiwallet.ico") if sys.platform == "win32" else None,
     upx=False,  # UPX shrinks files further but makes antivirus false alarms more likely.

@@ -1,4 +1,4 @@
-# Builds dist\guiwallet.exe from source: installs the pinned dependencies into a
+# Builds dist\htnwalletgui.exe from source: installs the pinned dependencies into a
 # private .venv folder, runs the tests, then builds. Nothing is installed system-wide.
 #
 #   powershell -ExecutionPolicy Bypass -File build.ps1
@@ -22,4 +22,4 @@ Invoke-Checked $python @("-m", "pip", "install", "--quiet", "--require-hashes", 
 Invoke-Checked $python @("-m", "pytest", "-q")
 Invoke-Checked $python @("-m", "PyInstaller", "--noconfirm", "--clean", "packaging\guiwallet.spec")
 
-Write-Host "Built dist\guiwallet.exe"
+Write-Host "Built dist\htnwalletgui.exe"

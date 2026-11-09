@@ -19,9 +19,9 @@ cat > "$entry" <<EOF
 Type=Application
 Name=HTN GUI Wallet
 Comment=Desktop wallet for Hoosat (HTN)
-Exec="$here/guiwallet"
+Exec="$here/htnwalletgui"
 Path=$here
-Icon=$here/guiwallet.png
+Icon=$here/htnwalletgui.png
 Terminal=false
 Categories=Finance;
 EOF

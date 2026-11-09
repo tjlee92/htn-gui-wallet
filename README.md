@@ -93,13 +93,13 @@ This app ──> htnwallet ──> wallet daemon ──> HTND node
 
 ## Running it
 
-Put `guiwallet.exe` in the same folder as `htnwallet.exe` and `htnctl.exe`, or choose their
+Put `htnwalletgui.exe` in the same folder as `htnwallet.exe` and `htnctl.exe`, or choose their
 folder in Settings. The app looks only in those two places, never on the system `PATH`.
 
 ### On Linux
 
-Unpack `guiwallet-linux-x86_64.tar.gz`, put `htnwallet` and `htnctl` in the `guiwallet` folder beside
-the `guiwallet` program, and run `./guiwallet`. Run `sh install.sh` once to add it to the
+Unpack `htnwalletgui-amd64.tar.gz`, put `htnwallet` and `htnctl` in the `htnwalletgui` folder beside
+the `htnwalletgui` program, and run `./htnwalletgui`. Run `sh install.sh` once to add it to the
 applications menu. It needs Ubuntu 22.04, Debian 12, Mint 21, Fedora 36 or newer (x86-64).
 
 If it doesn't open on Ubuntu or Debian, install the one library Qt needs that isn't there by
@@ -122,7 +122,7 @@ powershell -ExecutionPolicy Bypass -File build.ps1
 ```
 
 This creates a private `.venv`, installs the pinned dependencies, runs the tests, and produces
-`dist\guiwallet.exe`.
+`dist\htnwalletgui.exe`.
 
 For Linux, with Docker installed (from Linux, or from Windows with Docker Desktop and Git Bash):
 
@@ -131,7 +131,7 @@ sh build-linux.sh
 ```
 
 This builds inside Ubuntu 22.04, runs the tests there, and produces
-`dist/guiwallet-linux-x86_64.tar.gz`.
+`dist/htnwalletgui-amd64.tar.gz`.
 
 ## Developing
 
