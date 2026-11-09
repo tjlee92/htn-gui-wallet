@@ -14,3 +14,4 @@ scripts/dev-tests/*-scratch/
 scripts/dev-tests/fakewallet/bin/
 scripts/dev-tests/fakewallet/bin-linux/
 *.log
+scripts/dev-tests/exe-smoke/
