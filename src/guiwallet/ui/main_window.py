@@ -1271,10 +1271,14 @@ class MainWindow(QMainWindow):
             self._show_from_tray()
             return
         self.really_exit = True
-        self.compounders.stop_all()  # Windows would end them anyway; this does it straight away.
+        self.compounders.stop_all()  # The system would end them anyway; this does it straight away.
         if self.tray:
             self.tray.hide()
         QApplication.quit()
+
+    def show_from_tray(self) -> None:
+        """Bring the window back from the tray or the taskbar. Also used when the app is opened again."""
+        self._show_from_tray()
 
     def _show_from_tray(self) -> None:
         self.showNormal()
