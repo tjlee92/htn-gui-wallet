@@ -274,20 +274,24 @@ def find_compounds(own: dict[int, int] | None = None) -> list[RunningCompound]:
     """Every auto-compound running on this PC, however it was started. `own` is `Compounders.counts()`."""
     own = own or {}
     found = []
-    for process in psutil.process_iter(["pid", "name", "cmdline", "create_time"]):
+    # Names first: reading every process's command line takes seconds on Windows, and this runs often.
+    for process in psutil.process_iter(["name"]):
         if (process.info["name"] or "").lower() not in PROGRAM_NAMES:
             continue
-        parsed = parse_compound_command(process.info["cmdline"] or [])
+        try:
+            arguments = process.cmdline()
+            created = process.create_time()
+        except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+            continue
+        parsed = parse_compound_command(arguments or [])
         if parsed is None:
             continue
         from_addresses, to_address, interval = parsed
-        pid = process.info["pid"]
+        pid = process.pid
         started_here = pid in own
         compounded = own.get(pid, 0)
         found.append(
-            RunningCompound(
-                pid, process.info["create_time"] or 0.0, from_addresses, to_address, interval, started_here, compounded
-            )
+            RunningCompound(pid, created or 0.0, from_addresses, to_address, interval, started_here, compounded)
         )
     return found
 

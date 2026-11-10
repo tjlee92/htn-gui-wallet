@@ -96,11 +96,12 @@ def _flag_value(arguments: list[str], long: str, short: str) -> str | None:
 def find_running_daemons() -> list[RunningDaemon]:
     """htnwallet daemons running on this PC, with the address each listens on. Passwords are never read."""
     found = []
-    for process in psutil.process_iter(["name", "cmdline", "create_time"]):
+    # Names first: reading every process's command line takes seconds on Windows.
+    for process in psutil.process_iter(["name"]):
         try:
             if (process.info["name"] or "").lower() not in DAEMON_PROGRAM_NAMES:
                 continue
-            arguments = process.info["cmdline"] or []
+            arguments = process.cmdline() or []
             if "start-daemon" not in arguments[1:]:
                 continue
             ports = sorted(
@@ -114,7 +115,7 @@ def find_running_daemons() -> list[RunningDaemon]:
             )
             keys_file = _flag_value(arguments[1:], "keys-file", "f") or ""
             for port in ports:
-                found.append(RunningDaemon(f"127.0.0.1:{port}", keys_file, process.info["create_time"] or 0))
+                found.append(RunningDaemon(f"127.0.0.1:{port}", keys_file, process.create_time() or 0))
         except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
             continue
     return sorted(found, key=lambda daemon: daemon.address)
