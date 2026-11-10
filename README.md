@@ -8,7 +8,7 @@ are all done by `htnwallet`, unmodified.
 > **[HTND](https://github.com/HoosatNetwork/HTND)**, and a Hoosat node to connect to (with
 > `--utxoindex` on). Get them from HTND's releases page and put them in the same folder as this app.
 
-Version 1.0.0, for Windows and Linux.
+Version 1.0.1, for Windows and Linux.
 
 - **Create or restore a wallet** with the Setup Wizard: a new 24-word seed phrase, or restore from a
   seed phrase, an HTN web wallet backup, or a private key.

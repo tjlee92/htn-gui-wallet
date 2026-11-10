@@ -233,3 +233,35 @@ def test_a_lower_balance_after_a_refresh_refuses_the_typed_amount(page):
     assert page.review.isEnabled()
     page.show_balance(WalletBalance(Decimal(100), Decimal(0), (AddressBalance(FUNDED, Decimal(100), Decimal(0)),)))
     assert not page.review.isEnabled() and "more than the available" in page.error.text()
+
+
+def test_a_chosen_from_that_leaves_the_balance_list_stays_chosen(page):
+    # Such as when an auto-compound has just moved its coins away. Quietly falling back to "Any address"
+    # would spend the wallet's other addresses instead.
+    page.other_tab.click()
+    choose(page.source, ALSO_FUNDED)
+    page.recipient.setText(EMPTY)
+    page.amount.setText("5")
+    assert page.review.isEnabled()
+    page.show_balance(WalletBalance(Decimal(800), Decimal(0), (AddressBalance(FUNDED, Decimal(800), Decimal(0)),)))
+    assert page.source.currentData() == ALSO_FUNDED
+    assert page.available.text() == "Available: 0.00 HTN"
+    assert not page.review.isEnabled() and "more than the available" in page.error.text()
+    assert reviewed(page) == []
+
+
+def test_send_all_from_a_chosen_address_that_emptied_still_names_it(page):
+    page.other_tab.click()
+    choose(page.source, ALSO_FUNDED)
+    page.recipient.setText(EMPTY)
+    page.send_all.click()
+    page.show_balance(WalletBalance(Decimal(800), Decimal(0), (AddressBalance(FUNDED, Decimal(800), Decimal(0)),)))
+    [request] = reviewed(page)
+    assert request.from_address == ALSO_FUNDED and request.send_all
+
+
+def test_forgetting_the_wallet_drops_the_chosen_from(page):
+    page.other_tab.click()
+    choose(page.source, ALSO_FUNDED)
+    page.forget_wallet()
+    assert page.source.currentData() is None and page.source.count() == 1

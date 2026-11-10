@@ -504,6 +504,7 @@ class SendPage(QWidget):
         self.spendable = {}
         self.total_spendable = None
         self.receive_addresses = []
+        self.source.setCurrentIndex(0)  # A different wallet may come next: none of these is chosen.
         self.set_from_addresses([])
         self._refresh_own_lists()
         self._show_all_spendable()
@@ -527,10 +528,16 @@ class SendPage(QWidget):
             return
         chosen = self.source.currentData()
         self.from_addresses = addresses
+        listed = list(addresses)
+        if chosen is not None and chosen not in listed:
+            # The chosen address has dropped out of htnwallet's balance list, such as when its coins
+            # were just compounded away. It stays chosen, now with nothing to spend, rather than
+            # quietly becoming "Any address", which would spend the wallet's other addresses.
+            listed.append(chosen)
         self.source.blockSignals(True)
         self.source.clear()
         self.source.addItem("Any address (recommended)", None)
-        for address in addresses:
+        for address in listed:
             self.source.addItem(address_text(address, self.labels), address)
             self.source.setItemData(self.source.count() - 1, address, Qt.ItemDataRole.ToolTipRole)
         self.source.setCurrentIndex(max(0, self.source.findData(chosen)))
