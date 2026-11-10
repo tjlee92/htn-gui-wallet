@@ -4,6 +4,10 @@ A desktop interface for the Hoosat command-line tools. It's a set of forms on to
 `htnwallet` and `htnctl`, and contains no wallet logic of its own. Keys, signing and sending
 are all done by `htnwallet`, unmodified.
 
+> **Requires HTND.** This app needs `htnwallet` and `htnctl` from the official Hoosat node software,
+> **[HTND](https://github.com/HoosatNetwork/HTND)**, and a Hoosat node to connect to (with
+> `--utxoindex` on). Get them from HTND's releases page and put them in the same folder as this app.
+
 Version 1.0.0, for Windows and Linux.
 
 - **Create or restore a wallet** with the Setup Wizard: a new 24-word seed phrase, or restore from a
@@ -92,6 +96,8 @@ This app ──> htnwallet ──> wallet daemon ──> HTND node
   to this computer.
 
 ## Running it
+
+Download `htnwallet` and `htnctl` from [HTND](https://github.com/HoosatNetwork/HTND) first.
 
 Put `htnwalletgui.exe` in the same folder as `htnwallet.exe` and `htnctl.exe`, or choose their
 folder in Settings. The app looks only in those two places, never on the system `PATH`.
