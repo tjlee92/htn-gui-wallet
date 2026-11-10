@@ -40,6 +40,7 @@ from guiwallet.core.daemon import (
     running_daemon_version,
     start_daemon,
 )
+from guiwallet.core.nodes import OFFICIAL_RPC, Node, NodeError, find_nodes, is_official
 from guiwallet.core.settings import Settings, settings_path
 from guiwallet.core.setup import (
     INVALID_BACKUP,
@@ -66,7 +67,7 @@ from guiwallet.core.wallet import format_htn
 from guiwallet.ui.background import run_in_background
 from guiwallet.ui.compound_dialog import _FramedDialog
 from guiwallet.ui.theme import AMBER, GREEN, RED, app_icon
-from guiwallet.ui.widgets import StatusDot, TitleBar, copy_icon, label, shorten_address
+from guiwallet.ui.widgets import StatusDot, TitleBar, copy_icon, label, official_rpc_hint, shorten_address
 
 BUTTON_WIDTH = 130
 COLUMN_WIDTH = 600
@@ -273,6 +274,8 @@ class SetupWizard(QDialog):
         self.done_ready = False
         self.done_polling = False
         self.started_process: subprocess.Popen | None = None  # Handed to the main window by Open wallet.
+        self.done_node: Node | None = None  # The official RPC node the last page's htnwallet was given.
+        self.started_node: Node | None = None  # Handed to the main window with started_process.
 
         self.setWindowTitle("HTN GUI Wallet")
         self.setWindowIcon(app_icon())
@@ -896,13 +899,38 @@ class SetupWizard(QDialog):
                 RED,
             )
             return
+        if not is_official(self.draft.node_address):
+            self._done_start_on(tool, None)
+            return
+        try:
+            htnctl = find_tool(Tool.HTNCTL, tool_folders(self.draft))
+        except ToolError as error:
+            self._done_status(str(error), RED)
+            return
+        self._done_status("Finding the fastest node…", AMBER)
+
+        def failed(error: Exception) -> None:
+            if self.pages.currentWidget() is self.done_page and self.done_process is None:
+                reason = str(error) if isinstance(error, NodeError) else "Couldn't reach the official RPC"
+                self._done_status(f"{reason}. Open the wallet and press Start to try again.", RED)
+
+        run_in_background(lambda: find_nodes(htnctl), lambda nodes: self._done_start_on(tool, nodes[0]), failed)
+
+    def _done_start_on(self, tool: Path, node: Node | None) -> None:
+        if not self.isVisible() or self.pages.currentWidget() is not self.done_page or self.done_process is not None:
+            return  # Left the page, or the wizard, while the nodes were being timed.
+        self._done_status("Starting htnwallet…", AMBER)
         try:
             self.done_process = start_daemon(
-                tool, wallet_context(self.draft), self.draft.node_address, settings_path().parent / "daemon-start.log"
+                tool,
+                wallet_context(self.draft),
+                node.address if node else self.draft.node_address,
+                settings_path().parent / "daemon-start.log",
             )
         except ToolError as error:
             self._done_status(str(error), RED)
             return
+        self.done_node = node
         self.app_owns_daemon = True
         self.done_since = time.monotonic()
         self.done_timer.start()
@@ -990,6 +1018,7 @@ class SetupWizard(QDialog):
         self.done_timer.stop()
         # It keeps running; the main window takes it over, and can still cancel it while it starts.
         self.started_process, self.done_process = self.done_process, None
+        self.started_node = self.done_node if self.started_process is not None else None
         self._finish(STARTED)
 
     # ----- Use an existing wallet -----
@@ -1031,8 +1060,17 @@ class SetupWizard(QDialog):
         panel.addWidget(self.existing_file_note)
         panel.addSpacing(8)
         panel.addWidget(_field_label("Node (address:port)"))
+        node_row = QHBoxLayout()
         self.existing_node = QLineEdit()
-        panel.addWidget(self.existing_node)
+        node_row.addWidget(self.existing_node)
+        official = QPushButton("Use Official RPC")
+        official.setFixedWidth(BUTTON_WIDTH)
+        official.clicked.connect(lambda: self.existing_node.setText(OFFICIAL_RPC))
+        node_row.addWidget(official)
+        panel.addLayout(node_row)
+        self.existing_node_hint = official_rpc_hint()
+        self.existing_node.textChanged.connect(lambda text: self.existing_node_hint.setVisible(is_official(text)))
+        panel.addWidget(self.existing_node_hint)
         page.add(self.file_panel)
 
         back, self.existing_next = page.finish("Back", "Connect")

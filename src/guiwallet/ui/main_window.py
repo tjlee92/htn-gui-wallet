@@ -69,6 +69,7 @@ from guiwallet.core.daemon import (
     DaemonUnavailable,
     WalletSnapshot,
     close_daemon,
+    daemon_node,
     last_log_line,
     port_is_open,
     read_receive_addresses,
@@ -89,6 +90,16 @@ from guiwallet.core.send import (
     send_journal_path,
 )
 from guiwallet.core.labels import load_labels, save_labels, set_label
+from guiwallet.core.nodes import (
+    OFFICIAL_PORT,
+    OFFICIAL_RPC,
+    Node,
+    NodeError,
+    find_nodes,
+    is_official,
+    official_ip_of,
+    ping,
+)
 from guiwallet.core.settings import Settings, save_settings, settings_path
 from guiwallet.core.setup import tool_folders
 from guiwallet.core.tools import Tool, ToolError, find_tool
@@ -129,6 +140,11 @@ REFRESH_SECONDS = 5  # The balance is read this often.
 DETAILS_EVERY_N_REFRESHES = 4  # The daemon's version and the addresses rarely change: every 20 seconds.
 COINS_EVERY_N_REFRESHES = 3  # The coin list can be long, so it's fetched less often: every 15 seconds.
 DAEMON_START_TIMEOUT_SECONDS = 120
+# An official RPC node answered moments ago, so htnwallet connects at once. If it hasn't started by
+# then, the next fastest node is tried.
+OFFICIAL_NODE_START_TIMEOUT_SECONDS = 60
+NODE_PING_SECONDS = 30  # The node in use is timed this often, for the status corner.
+NODE_FAILURES_BEFORE_SWITCH = 3  # Missed pings in a row before the app moves to another node.
 BANNER_SECONDS = 8
 NOT_RUNNING_MESSAGE = "htnwallet isn't running. Press Start to run it."
 SENDING_MESSAGE = "A send is in progress. Please wait a few seconds for it to finish."
@@ -203,6 +219,15 @@ class MainWindow(QMainWindow):
         self.compounders = Compounders()  # The auto-compounds this app started. They end with it.
         self.scanning_compounds = False
         self.daemon_version: str | None = None  # Shown beside "htnwallet" in the status corner.
+        # The official RPC node htnwallet uses, when the node setting is the official RPC.
+        self.node: Node | None = None
+        self.node_latency: float | None = None  # From the latest ping; None when it didn't answer.
+        self.node_failures = 0  # Missed pings in a row.
+        self.node_warned = False
+        self.pinging = False
+        self.looking_up_node = False
+        self.starting_node: Node | None = None  # The node the htnwallet being started was given.
+        self.node_queue: list[Node] = []  # The next fastest nodes, tried in turn if starting fails.
         self.history_cache: Cache | None = None
         self.history_busy = False
         self.history_generation = 0  # Goes up when another address is chosen; older results are ignored.
@@ -304,6 +329,10 @@ class MainWindow(QMainWindow):
         self.history_timer = QTimer(self, interval=HISTORY_CHECK_SECONDS * 1000)
         self.history_timer.timeout.connect(self._history_refresh_if_shown)
         self.history_timer.start()
+        # Runs even while the window is hidden: a dead node is replaced for a running auto-compound too.
+        self.node_timer = QTimer(self, interval=NODE_PING_SECONDS * 1000)
+        self.node_timer.timeout.connect(self._ping_node)
+        self.node_timer.start()
 
         self._show_not_running("htnwallet not running")
         self.state = State.CHECKING
@@ -389,6 +418,9 @@ class MainWindow(QMainWindow):
         self.status_detail = label("", "muted")
         self.status_detail.setWordWrap(True)
         layout.addWidget(self.status_detail)
+        self.status_node = label("", "muted")  # "rpc.hoosat.network:42420 (64 ms)" while on the official RPC.
+        self.status_node.hide()
+        layout.addWidget(self.status_node)
         layout.addSpacing(8)
         self.start_stop_button = QPushButton("Start")
         self.start_stop_button.clicked.connect(self._start_stop_clicked)
@@ -569,6 +601,7 @@ class MainWindow(QMainWindow):
             if not self.started_by_app:
                 detail = f" (version {version})" if version else ""
                 self._show_banner(f"htnwallet is already running{detail}, so the app is using it.")
+                self._look_up_node()
         self._update_status(self._running_text(), GREEN, self.settings.daemon_address, "Stop", True)
         self.settings_page.set_htnwallet_running(True)
 
@@ -576,6 +609,11 @@ class MainWindow(QMainWindow):
         self.state = State.NOT_RUNNING
         self.started_by_app = False
         self.starting_process = None
+        self.starting_node = None
+        self.node_queue = []
+        self.node = None
+        self.node_latency = None
+        self.node_failures = 0
         self.start_timer.stop()
         self.daemon_version = None  # Whatever starts next may be another version.
         self._update_status(reason, RED, self.settings.daemon_address, "Start", tools_found)
@@ -588,6 +626,100 @@ class MainWindow(QMainWindow):
         self.status_detail.setText(detail)
         self.start_stop_button.setText(button)
         self.start_stop_button.setEnabled(enabled and not self.sending)
+        self._show_node_line()
+
+    def _show_node_line(self) -> None:
+        if self.node is None or self.state is not State.RUNNING:
+            self.status_node.hide()
+            return
+        timing = "no answer" if self.node_latency is None else f"{round(self.node_latency)} ms"
+        self.status_node.setText(f"{OFFICIAL_RPC} ({timing})")
+        self.status_node.setToolTip(f"Connected to the public node {self.node.ip}")
+        self.status_node.show()
+
+    # ----- The official RPC's node -----
+
+    def _look_up_node(self) -> None:
+        """For an htnwallet the app didn't start: whether it uses one of the official RPC's nodes."""
+        if self.looking_up_node or not is_official(self.settings.node_address):
+            return
+        self.looking_up_node = True
+        generation = self.generation
+        port = self.settings.daemon_port
+
+        def work():
+            node = daemon_node(port)
+            ip = official_ip_of(node) if node else None
+            if ip is None:
+                return None
+            address = f"{ip}:{OFFICIAL_PORT}"
+            return Node(address, 0.0), ping(address)
+
+        def finished(result) -> None:
+            self.looking_up_node = False
+            if result is None or generation != self.generation or self.state is not State.RUNNING:
+                return
+            self.node, self.node_latency = result
+            self.node_failures = 0 if self.node_latency is not None else 1
+            self._show_node_line()
+
+        run_in_background(work, finished, lambda _error: setattr(self, "looking_up_node", False))
+
+    def _ping_node(self) -> None:
+        if self.pinging or self.node is None or self.state is not State.RUNNING:
+            return
+        self.pinging = True
+        generation = self.generation
+        address = self.node.address
+        run_in_background(
+            lambda: ping(address),
+            lambda latency: self._node_pinged(generation, address, latency),
+            lambda _error: self._node_pinged(generation, address, None),
+        )
+
+    def _node_pinged(self, generation: int, address: str, latency: float | None) -> None:
+        self.pinging = False
+        if generation != self.generation or self.state is not State.RUNNING:
+            return
+        if self.node is None or self.node.address != address:
+            return
+        self.node_latency = latency
+        self.node_failures = 0 if latency is not None else self.node_failures + 1
+        self._show_node_line()
+        if self.node_failures < NODE_FAILURES_BEFORE_SWITCH:
+            return
+        if not self.started_by_app:
+            # Not this app's htnwallet to restart: something else may depend on it.
+            if not self.node_warned:
+                self.node_warned = True
+                self._show_banner("The node isn't answering. Press Stop, then Start, to move to another one.")
+            return
+        if self.sending or self.waiting_send is not None:
+            return  # Never in the middle of a send. The next ping tries again.
+        self._switch_node()
+
+    def _switch_node(self) -> None:
+        """Restart the htnwallet this app started, on the fastest node that answers now.
+
+        An auto-compound talks to htnwallet, not to the node, so it carries on once htnwallet is back.
+        """
+        self.generation += 1
+        self.state = State.STARTING  # Holds off the balance checks until htnwallet is back.
+        self._update_status("Switching node…", AMBER, OFFICIAL_RPC, "Cancel", False)
+        self._show_banner("The node stopped answering, so the app is moving htnwallet to another one.")
+        port = self.settings.daemon_port
+
+        def closed(_result) -> None:
+            self.state = State.NOT_RUNNING
+            self._start()
+
+        def failed(error: Exception) -> None:
+            self.state = State.CHECKING
+            self._stop_failed(error)
+            self.checking = False
+            self._check()
+
+        run_in_background(lambda: close_daemon(port), closed, failed)
 
     def _set_balances_hidden(self, hidden: bool) -> None:
         self.settings.hide_balances = hidden
@@ -665,20 +797,69 @@ class MainWindow(QMainWindow):
 
     def _start(self) -> None:
         self.generation += 1
+        self.node_queue = []
         try:
             tool = find_tool(Tool.HTNWALLET, tool_folders(self.settings))
+            htnctl = find_tool(Tool.HTNCTL, tool_folders(self.settings))
+        except ToolError as error:
+            self._show_not_running(str(error))
+            return
+        if not is_official(self.settings.node_address):
+            self._start_on(tool, self.settings.node_address, None)
+            return
+        generation = self.generation
+        self.starting_process = None
+        self.state = State.STARTING
+        self._update_status("Finding the fastest node…", AMBER, OFFICIAL_RPC, "Cancel", True)
+        self.settings_page.set_htnwallet_running(True)
+        run_in_background(
+            lambda: find_nodes(htnctl),
+            lambda nodes: self._nodes_found(generation, tool, nodes),
+            lambda error: self._nodes_failed(generation, error),
+        )
+
+    def _nodes_found(self, generation: int, tool: Path, nodes: list[Node]) -> None:
+        if generation != self.generation or self.state is not State.STARTING:
+            return  # Cancelled meanwhile.
+        self.node_queue = nodes[1:]
+        self._start_on(tool, nodes[0].address, nodes[0])
+
+    def _nodes_failed(self, generation: int, error: Exception) -> None:
+        if generation != self.generation or self.state is not State.STARTING:
+            return
+        self._show_not_running(str(error) if isinstance(error, NodeError) else "Couldn't reach the official RPC")
+
+    def _start_on(self, tool: Path, node_address: str, node: Node | None) -> None:
+        """Start htnwallet on this node. `node` is set when it's one of the official RPC's."""
+        try:
             self.starting_process = start_daemon(
-                tool, wallet_context(self.settings), self.settings.node_address, self._daemon_log_path()
+                tool, wallet_context(self.settings), node_address, self._daemon_log_path()
             )
         except ToolError as error:
             self._show_not_running(str(error))
             return
+        self.starting_node = node
         self.starting_since = time.monotonic()
         self.state = State.STARTING
         # htnwallet can keep retrying a node it can't reach, so starting can always be cancelled.
-        self._update_status("Starting htnwallet…", AMBER, self.settings.node_address, "Cancel", True)
+        self._update_status("Starting htnwallet…", AMBER, OFFICIAL_RPC if node else node_address, "Cancel", True)
         self.settings_page.set_htnwallet_running(True)
         self.start_timer.start()
+
+    def _try_next_node(self) -> bool:
+        """After a failed start on an official RPC node, start on the next fastest. False if none is left."""
+        if not self.node_queue:
+            return False
+        process = self.starting_process
+        if process is not None and process.poll() is None:
+            process.kill()  # The app started this one, so it's safe to end it.
+        try:
+            tool = find_tool(Tool.HTNWALLET, tool_folders(self.settings))
+        except ToolError:
+            return False
+        node = self.node_queue.pop(0)
+        self._start_on(tool, node.address, node)
+        return True
 
     def _cancel_start(self) -> None:
         """End the htnwallet this app is starting. Only that process: the app started it."""
@@ -694,10 +875,15 @@ class MainWindow(QMainWindow):
         if process is None or self.state is not State.STARTING:
             return
         if process.poll() is not None:
+            if self._try_next_node():
+                return
             reason = last_log_line(self._daemon_log_path()) or "htnwallet exited straight away"
             self._show_not_running(f"Could not start: {reason}")
             return
-        if time.monotonic() - self.starting_since > DAEMON_START_TIMEOUT_SECONDS:
+        limit = OFFICIAL_NODE_START_TIMEOUT_SECONDS if self.starting_node else DAEMON_START_TIMEOUT_SECONDS
+        if time.monotonic() - self.starting_since > limit:
+            if self._try_next_node():
+                return
             process.kill()  # The app started this one, so it's safe to end it.
             self._show_not_running("Could not start: htnwallet didn't respond in time")
             return
@@ -720,6 +906,10 @@ class MainWindow(QMainWindow):
             return
         self.starting_process = None
         self.started_by_app = True
+        self.node, self.starting_node, self.node_queue = self.starting_node, None, []
+        self.node_latency = self.node.latency_ms if self.node else None
+        self.node_failures = 0
+        self.node_warned = False
         self.state = State.NOT_RUNNING  # _show_running moves it on, and _check reads the wallet.
         self._show_running(version)
         self.checking = False
@@ -1173,9 +1363,15 @@ class MainWindow(QMainWindow):
         wizard = SetupWizard(self, self.settings, app_owns_daemon=owns)
         wizard.move(self.frameGeometry().topLeft())
         if wizard.exec() == QDialog.DialogCode.Accepted and wizard.action:
-            self.after_wizard(wizard.action, app_owned=owns, process=wizard.started_process)
+            self.after_wizard(wizard.action, app_owned=owns, process=wizard.started_process, node=wizard.started_node)
 
-    def after_wizard(self, action: str, app_owned: bool = False, process: subprocess.Popen | None = None) -> None:
+    def after_wizard(
+        self,
+        action: str,
+        app_owned: bool = False,
+        process: subprocess.Popen | None = None,
+        node: Node | None = None,
+    ) -> None:
         """Use what the Setup Wizard chose: its settings are already in self.settings."""
         self._save_quietly()
         self.settings_page.show_settings()
@@ -1212,9 +1408,11 @@ class MainWindow(QMainWindow):
         if action == STARTED and process is not None and process.poll() is None:
             # The wizard's htnwallet may still be starting: watch it as if Start had been pressed, Cancel included.
             self.starting_process = process
+            self.starting_node = node
             self.starting_since = time.monotonic()
             self.state = State.STARTING
-            self._update_status("Starting htnwallet…", AMBER, self.settings.node_address, "Cancel", True)
+            detail = OFFICIAL_RPC if node else self.settings.node_address
+            self._update_status("Starting htnwallet…", AMBER, detail, "Cancel", True)
             self.settings_page.set_htnwallet_running(True)
             self.start_timer.start()
             return

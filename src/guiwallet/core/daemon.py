@@ -96,6 +96,23 @@ def find_port_owner(port: int) -> psutil.Process | None:
     return None
 
 
+def daemon_node(port: int) -> str | None:
+    """The node the htnwallet on this port was started with, read from its command line."""
+    try:
+        owner = find_port_owner(port)
+        if owner is None or owner.name().lower() not in DAEMON_PROGRAM_NAMES:
+            return None
+        arguments = owner.cmdline()
+    except (psutil.Error, OSError):
+        return None
+    for index, argument in enumerate(arguments):
+        if argument.startswith("--rpcserver="):
+            return argument.split("=", 1)[1]
+        if argument in ("--rpcserver", "-s") and index + 1 < len(arguments):
+            return arguments[index + 1]
+    return None
+
+
 def close_daemon(port: int) -> None:
     """Close the daemon on this port, and only that process.
 

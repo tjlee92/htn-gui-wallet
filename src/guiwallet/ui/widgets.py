@@ -18,6 +18,17 @@ def label(text: str = "", name: str | None = None) -> QLabel:
     return widget
 
 
+OFFICIAL_RPC_HINT = "The fastest synced public node is picked at each start. Public nodes see your addresses."
+
+
+def official_rpc_hint() -> QLabel:
+    """The line under a node field while it holds the official RPC. Hidden until then."""
+    hint = label(OFFICIAL_RPC_HINT, "hint")
+    hint.setWordWrap(True)
+    hint.hide()
+    return hint
+
+
 def page_layout(page: QWidget, title: str, subtitle: str) -> QVBoxLayout:
     layout = QVBoxLayout(page)
     layout.setContentsMargins(32, 28, 32, 24)

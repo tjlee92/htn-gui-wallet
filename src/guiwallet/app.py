@@ -33,14 +33,14 @@ def main() -> int:
 
     instance.on_show_requested(show_existing)
     settings = load_settings()
-    action, process = None, None
+    action, process, node = None, None, None
     if is_first_launch():
         # Shown once: finishing it saves the settings, and saved settings mean it isn't the first launch.
         wizard = shown["wizard"] = SetupWizard(None, settings)
         if wizard.exec() != QDialog.DialogCode.Accepted or not wizard.action:
             return 0
         del shown["wizard"]
-        action, process = wizard.action, wizard.started_process
+        action, process, node = wizard.action, wizard.started_process, wizard.started_node
         try:
             save_settings(settings)
         except OSError:
@@ -48,5 +48,5 @@ def main() -> int:
     window = shown["window"] = MainWindow(settings)
     window.show()
     if action:
-        window.after_wizard(action, process=process)
+        window.after_wizard(action, process=process, node=node)
     return application.exec()

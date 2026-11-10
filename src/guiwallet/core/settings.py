@@ -14,7 +14,8 @@ class Settings:
     tools_folder: str = ""
     keys_file: str = ""  # Where the encrypted wallet file is. Empty means htnwallet's default.
     network: str = "mainnet"
-    node_address: str = "localhost:42420"
+    # New installs use the official public RPC. A saved setting, such as 1.0.1's localhost, is kept.
+    node_address: str = "rpc.hoosat.network:42420"
     # htnwallet's own default, so the app finds a daemon the user started themselves.
     daemon_address: str = "127.0.0.1:4282"
     close_action: str = "ask"  # "ask", "exit" or "tray"

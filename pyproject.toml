@@ -1,6 +1,6 @@
 [project]
 name = "guiwallet"
-version = "1.0.1"
+version = "1.1.0"
 description = "Desktop interface for the Hoosat htnwallet and htnctl command-line tools"
 requires-python = ">=3.12"
 readme = "README.md"

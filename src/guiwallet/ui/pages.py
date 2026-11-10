@@ -20,11 +20,11 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from guiwallet import __version__
 from guiwallet.core.labels import MAX_LABEL_LENGTH
 
 from guiwallet.core.compound import RunningCompound
 from guiwallet.core.daemon import WalletSnapshot
+from guiwallet.core.nodes import OFFICIAL_RPC, is_official
 from guiwallet.core.send import SendRequest
 from guiwallet.core.settings import Settings, default_keys_file, save_settings
 from guiwallet.core.tools import sending_switched_off
@@ -49,6 +49,7 @@ from guiwallet.ui.widgets import (
     cycle_icon,
     divider,
     label,
+    official_rpc_hint,
     page_layout,
     shorten_address,
 )
@@ -876,6 +877,11 @@ class SettingsPage(QWidget):
 
         self.node_address = QLineEdit(settings.node_address)
         self.node_address.setPlaceholderText("address:port")
+        self.use_official = QPushButton("Use Official RPC")
+        self.use_official.clicked.connect(lambda: self.node_address.setText(OFFICIAL_RPC))
+        self.node_hint = official_rpc_hint()
+        self.node_address.textChanged.connect(lambda text: self.node_hint.setVisible(is_official(text)))
+        self.node_hint.setVisible(is_official(settings.node_address))
         self.daemon_address = QLineEdit(settings.daemon_address)
         self.daemon_address.setPlaceholderText("127.0.0.1:4282")
         self.close_action = QComboBox()
@@ -892,14 +898,16 @@ class SettingsPage(QWidget):
         fields = [
             ("Main folder", self.tools_folder, browse_tools),
             ("Wallet file", self.keys_file, self.browse_keys),
-            ("Node (address:port)", self.node_address, None),
+            ("Node (address:port)", self.node_address, self.use_official),
+            ("", self.node_hint, None),
             ("htnwallet (address:port)", self.daemon_address, None),
             ("Closing the window", self.close_action, None),
             ("Transaction History source", self.history_source, None),
             ("Debug details", self.show_debug, None),
         ]
         for row, (name, field, button) in enumerate(fields):
-            grid.addWidget(label(name, "sectionLabel"), row, 0)
+            if name:
+                grid.addWidget(label(name, "sectionLabel"), row, 0)
             grid.addWidget(field, row, 1, 1, 1 if button else 2)
             if button:
                 grid.addWidget(button, row, 2)
@@ -936,16 +944,14 @@ class SettingsPage(QWidget):
         self.wizard_button.clicked.connect(self.wizard_requested)
         wizard_row.addWidget(self.wizard_button)
         layout.addWidget(wizard)
-        layout.addSpacing(10)
-        self.version = label(f"HTN GUI Wallet  v{__version__}", "muted")
-        layout.addWidget(self.version)
+        # The version is shown in the title bar.
         layout.addStretch()
         self.show_close_action()
         self.set_htnwallet_running(False)
 
     def set_htnwallet_running(self, running: bool) -> None:
         """These only apply when htnwallet starts, so they're locked while it's running."""
-        for field in (self.keys_file, self.browse_keys, self.node_address, self.daemon_address):
+        for field in (self.keys_file, self.browse_keys, self.node_address, self.use_official, self.daemon_address):
             field.setEnabled(not running)
         if running:
             self.status.setText(
