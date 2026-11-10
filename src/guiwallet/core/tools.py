@@ -78,7 +78,7 @@ if sys.platform.startswith("linux"):
         """Runs in the new process before htnwallet starts: Linux kills it when its starter goes away.
 
         Linux ties this to the starting thread, not the whole app, so it's only used where that
-        thread waits for the command or is the main thread.
+        thread waits for the command, is the main thread, or is kept for it (_popen_kept).
         """
         _LIBC.prctl(_PR_SET_PDEATHSIG, _SIGKILL)
 else:
@@ -92,6 +92,33 @@ def _linux_tie(thread_waits: bool):
     if thread_waits or threading.current_thread() is threading.main_thread():
         return _die_with_this_app
     return None
+
+
+def _popen_kept(argv: list[str], **options) -> subprocess.Popen:
+    """Start a long-running command from a thread of its own that stays until the command ends.
+
+    On Linux the tie follows the starting thread, so a command started from a short-lived worker
+    thread would lose it. This thread lives exactly as long as the command, so the command still
+    ends if the app dies, and isn't ended while the app is fine. Elsewhere it's a plain Popen.
+    """
+    if _die_with_this_app is None:
+        return subprocess.Popen(argv, **options)
+    handed_over: queue.SimpleQueue = queue.SimpleQueue()
+
+    def keep() -> None:
+        try:
+            process = subprocess.Popen(argv, preexec_fn=_die_with_this_app, **options)
+        except BaseException as error:  # Handed to the caller, which raises it there.
+            handed_over.put(error)
+            return
+        handed_over.put(process)
+        process.wait()
+
+    threading.Thread(target=keep, name="keeps-htnwallet", daemon=True).start()
+    result = handed_over.get()
+    if isinstance(result, BaseException):
+        raise result
+    return result
 
 
 class ToolError(Exception):
@@ -310,7 +337,7 @@ def start_tied(
     argv = _command_line(tool_path, tool, command, arguments, None)
     log.info("Starting %s %s", tool.value, command)  # Never the arguments.
     try:
-        process = subprocess.Popen(
+        process = _popen_kept(
             argv,
             stdin=subprocess.DEVNULL,
             stdout=subprocess.PIPE,
@@ -319,7 +346,6 @@ def start_tied(
             errors="replace",
             cwd=tool_path.parent,
             creationflags=_HIDDEN_WINDOW,
-            preexec_fn=_linux_tie(thread_waits=False),
         )
     # "from None" matters: Python's original errors include the full command line.
     except OSError as error:
