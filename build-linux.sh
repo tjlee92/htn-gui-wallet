@@ -5,6 +5,10 @@
 #
 #   sh build-linux.sh
 #
+# If Ubuntu's main server can't be reached, use one of its official mirrors instead:
+#
+#   UBUNTU_MIRROR=http://mirrors.edge.kernel.org/ubuntu sh build-linux.sh
+#
 # Runs the tests first, the same as build.ps1. Needs Docker. Works from Linux or from Windows
 # (Git Bash or WSL) with Docker Desktop.
 set -eu
@@ -15,8 +19,11 @@ export MSYS_NO_PATHCONV=1
 version="$(sed -n 's/^__version__ = "\(.*\)".*/\1/p' src/guiwallet/__init__.py | tr -d '\r')"
 name="htnwalletgui-v$version-linux-amd64.tar.gz"
 
-docker run --rm -e NAME="$name" -v "$here:/src" -w /build ubuntu:22.04 sh -euc '
+docker run --rm -e NAME="$name" -e MIRROR="${UBUNTU_MIRROR:-}" -v "$here:/src" -w /build ubuntu:22.04 sh -euc '
   export DEBIAN_FRONTEND=noninteractive
+  if [ -n "$MIRROR" ]; then
+    sed -i "s|http://archive.ubuntu.com/ubuntu|$MIRROR|g; s|http://security.ubuntu.com/ubuntu|$MIRROR|g" /etc/apt/sources.list
+  fi
   apt-get update -qq
   apt-get install -y -qq --no-install-recommends software-properties-common gpg-agent >/dev/null
   add-apt-repository -y ppa:deadsnakes/ppa >/dev/null
