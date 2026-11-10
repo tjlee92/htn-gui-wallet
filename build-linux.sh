@@ -12,7 +12,7 @@ cd "$(dirname "$0")"
 here="$(pwd -W 2>/dev/null || pwd)"  # Git Bash on Windows needs the Windows form of the path.
 export MSYS_NO_PATHCONV=1
 # Named like HTND's own downloads, with the version from guiwallet/__init__.py.
-version="$(sed -n 's/^__version__ = "\(.*\)"//p' src/guiwallet/__init__.py)"
+version="$(sed -n 's/^__version__ = "\(.*\)".*/\1/p' src/guiwallet/__init__.py | tr -d '\r')"
 name="htnwalletgui-v$version-linux-amd64.tar.gz"
 
 docker run --rm -e NAME="$name" -v "$here:/src" -w /build ubuntu:22.04 sh -euc '
