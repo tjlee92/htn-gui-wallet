@@ -1,5 +1,5 @@
 #!/bin/sh
-# Builds the Linux version, dist/htnwalletgui-amd64.tar.gz, inside Ubuntu 22.04 with Docker.
+# Builds the Linux version, dist/htnwalletgui-v<version>-linux-amd64.tar.gz, inside Ubuntu 22.04 with Docker.
 # Ubuntu 22.04 is old on purpose: the result then runs on Ubuntu 22.04, Debian 12, Mint 21, Fedora 36
 # and newer. It can't go older: PySide6 6.12 needs glibc 2.34.
 #
@@ -11,8 +11,11 @@ set -eu
 cd "$(dirname "$0")"
 here="$(pwd -W 2>/dev/null || pwd)"  # Git Bash on Windows needs the Windows form of the path.
 export MSYS_NO_PATHCONV=1
+# Named like HTND's own downloads, with the version from guiwallet/__init__.py.
+version="$(sed -n 's/^__version__ = "\(.*\)"//p' src/guiwallet/__init__.py)"
+name="htnwalletgui-v$version-linux-amd64.tar.gz"
 
-docker run --rm -v "$here:/src" -w /build ubuntu:22.04 sh -euc '
+docker run --rm -e NAME="$name" -v "$here:/src" -w /build ubuntu:22.04 sh -euc '
   export DEBIAN_FRONTEND=noninteractive
   apt-get update -qq
   apt-get install -y -qq --no-install-recommends software-properties-common gpg-agent >/dev/null
@@ -31,7 +34,7 @@ docker run --rm -v "$here:/src" -w /build ubuntu:22.04 sh -euc '
   cp packaging/linux/install.sh pack/htnwalletgui/
   chmod +x pack/htnwalletgui/htnwalletgui pack/htnwalletgui/install.sh
   mkdir -p /src/dist
-  tar -C pack -czf /src/dist/htnwalletgui-amd64.tar.gz htnwalletgui
-  chown "$(stat -c %u:%g /src)" /src/dist /src/dist/htnwalletgui-amd64.tar.gz
+  tar -C pack -czf "/src/dist/$NAME" htnwalletgui
+  chown "$(stat -c %u:%g /src)" /src/dist "/src/dist/$NAME"
 '
-echo "Built dist/htnwalletgui-amd64.tar.gz"
+echo "Built dist/$name"

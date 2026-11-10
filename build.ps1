@@ -1,4 +1,4 @@
-# Builds dist\htnwalletgui.exe from source: installs the pinned dependencies into a
+# Builds dist\htnwalletgui-v<version>-windows-amd64.exe from source: installs the pinned dependencies into a
 # private .venv folder, runs the tests, then builds. Nothing is installed system-wide.
 #
 #   powershell -ExecutionPolicy Bypass -File build.ps1
@@ -22,4 +22,8 @@ Invoke-Checked $python @("-m", "pip", "install", "--quiet", "--require-hashes", 
 Invoke-Checked $python @("-m", "pytest", "-q")
 Invoke-Checked $python @("-m", "PyInstaller", "--noconfirm", "--clean", "packaging\guiwallet.spec")
 
-Write-Host "Built dist\htnwalletgui.exe"
+# Named like HTND's own downloads, with the version from guiwallet/__init__.py.
+$version = (& $python -c "import sys; sys.path.insert(0, 'src'); import guiwallet; print(guiwallet.__version__)").Trim()
+$name = "htnwalletgui-v$version-windows-amd64.exe"
+Move-Item -Force "dist\htnwalletgui.exe" "dist\$name"
+Write-Host "Built dist\$name"

@@ -99,12 +99,12 @@ This app ──> htnwallet ──> wallet daemon ──> HTND node
 
 Download `htnwallet` and `htnctl` from [HTND](https://github.com/HoosatNetwork/HTND) first.
 
-Put `htnwalletgui.exe` in the same folder as `htnwallet.exe` and `htnctl.exe`, or choose their
+Put `htnwalletgui-v1.0.1-windows-amd64.exe` (from the [releases page](https://github.com/tjlee92/htn-gui-wallet/releases)) in the same folder as `htnwallet.exe` and `htnctl.exe`, or choose their
 folder in Settings. The app looks only in those two places, never on the system `PATH`.
 
 ### On Linux
 
-Unpack `htnwalletgui-amd64.tar.gz`, put `htnwallet` and `htnctl` in the `htnwalletgui` folder beside
+Unpack `htnwalletgui-v1.0.1-linux-amd64.tar.gz`, put `htnwallet` and `htnctl` in the `htnwalletgui` folder beside
 the `htnwalletgui` program, and run `./htnwalletgui`. Run `sh install.sh` once to add it to the
 applications menu. It needs Ubuntu 22.04, Debian 12, Mint 21, Fedora 36 or newer (x86-64).
 
@@ -128,7 +128,7 @@ powershell -ExecutionPolicy Bypass -File build.ps1
 ```
 
 This creates a private `.venv`, installs the pinned dependencies, runs the tests, and produces
-`dist\htnwalletgui.exe`.
+`dist\htnwalletgui-v<version>-windows-amd64.exe`.
 
 For Linux, with Docker installed (from Linux, or from Windows with Docker Desktop and Git Bash):
 
@@ -137,7 +137,7 @@ sh build-linux.sh
 ```
 
 This builds inside Ubuntu 22.04, runs the tests there, and produces
-`dist/htnwalletgui-amd64.tar.gz`.
+`dist/htnwalletgui-v<version>-linux-amd64.tar.gz`.
 
 ## Developing
 
