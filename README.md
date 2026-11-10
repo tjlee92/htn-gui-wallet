@@ -65,8 +65,8 @@ no tracking and no analytics.
 - **What goes over the internet:**
   - `htnwallet` talks to the Hoosat node you choose in Settings, to read your balance and send
     your transactions. Transactions are public on the Hoosat network.
-  - Transaction History asks the HTN explorer you choose (EU or NZ) for your addresses'
-    transactions. Addresses and transactions are public on the network, but the explorer can see
+  - Transaction History reads your addresses' transactions from the HTN explorer's public API
+    (EU or NZ, your choice in Settings). Addresses and transactions are public on the network, but the explorer can see
     that one computer asked about these addresses. It's only asked while the Transaction History
     page is open; if you'd rather it wasn't asked at all, don't open that page.
   - Nothing else. There's no update check, and nothing is sent to the app's authors. (The tray
@@ -76,9 +76,9 @@ Keep in mind:
 
 - **Copy words** puts your seed phrase on the clipboard, where other programs can read it.
   Writing it on paper is safer.
-- The wallet password is passed to `htnwallet` on its command line, so other programs running
-  under your Windows or Linux account may see it while a send runs, and for as long as an
-  auto-compound keeps running (see Known limitation below).
+- Some secrets are passed to `htnwallet` on its command line, which other programs on the same
+  computer can read while that command runs (see Known limitation below). On Linux that
+  includes other users' programs, not just yours.
 - **Debug details** in Settings shows the command sent to `htnwallet`, with the password always
   hidden. It's off unless you switch it on.
 
@@ -175,9 +175,28 @@ pip-compile --generate-hashes --allow-unsafe requirements-dev.in
 
 ## Known limitation
 
-The wallet password is passed to `htnwallet` on its command line, so other programs running
-under the same Windows account, and any tools that log command lines, may be able to see it
-while a send is running.
+`htnwallet` can only ask for secrets in a terminal window, so the app has to pass them on its
+command line instead. Anything that can see the command lines of running programs can read them
+while the command runs:
+
+- **The wallet password**, during a send (a few seconds), and **for as long as an auto-compound
+  keeps running**, which can be hours or days. Also while the Setup Wizard creates or restores a
+  wallet.
+- **The private key**, when restoring from a private key, and **the backup's password**, when
+  restoring from a web wallet backup file. Both only for the moment the restore runs. (Seed
+  phrases are never passed this way: they go to `htnwallet` directly.)
+
+Who can see them:
+
+- **Windows:** other programs running under your account, and programs running as
+  administrator. Security or auditing tools that record command lines (for example Windows
+  process auditing, Sysmon, or some antivirus software) may also save them in their logs.
+- **Linux:** any user on the computer, not just you, can read other programs' command lines by
+  default.
+
+On a computer only you use, with no malware on it, this isn't a practical risk. On a shared
+computer, don't leave auto-compound running, and restore from a private key or backup file on a
+computer only you use.
 
 ## Licence
 
