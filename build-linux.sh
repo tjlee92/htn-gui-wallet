@@ -27,7 +27,11 @@ docker run --rm -e NAME="$name" -e MIRROR="${UBUNTU_MIRROR:-}" -v "$here:/src" -
   apt-get update -qq
   apt-get install -y -qq --no-install-recommends software-properties-common gpg-agent >/dev/null
   add-apt-repository -y ppa:deadsnakes/ppa >/dev/null
-  apt-get install -y -qq --no-install-recommends python3.13 python3.13-venv libpython3.13 binutils     libgl1 libegl1 libxkbcommon0 libfontconfig1 libdbus-1-3 libglib2.0-0 >/dev/null
+  apt-get install -y -qq --no-install-recommends python3.13 python3.13-venv libpython3.13 binutils     libgl1 libegl1 libxkbcommon0 libfontconfig1 libdbus-1-3 libglib2.0-0 \
+    libxcb-cursor0 libxcb-icccm4 libxcb-keysyms1 libxcb-image0 libxcb-render-util0 libxcb-shape0 \
+    libxcb-xkb1 libxkbcommon-x11-0 >/dev/null
+  # The libxcb-* and libxkbcommon-x11 lines are for Qt'"'"'s X11 support. Installed here, they are bundled into
+  # the app, so users don'"'"'t need to install libxcb-cursor0 themselves (many desktops lack it).
   python3.13 -m venv /venv
   export PATH="/venv/bin:$PATH"
   cp -r /src/src /src/tests /src/packaging /src/requirements.txt /src/requirements-dev.txt \

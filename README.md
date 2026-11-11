@@ -108,13 +108,6 @@ Unpack `htnwalletgui-vX.X.X-linux-amd64.tar.gz`, put `htnwallet` and `htnctl` in
 the `htnwalletgui` program, and run `./htnwalletgui`. Run `sh install.sh` once to add it to the
 applications menu. It needs Ubuntu 22.04, Debian 12, Mint 21, Fedora 36 or newer (x86-64).
 
-If it doesn't open on Ubuntu or Debian, install the one library Qt needs that isn't there by
-default:
-
-```sh
-sudo apt install libxcb-cursor0
-```
-
 Settings are kept in `~/.config/guiwallet`, and the wallet file is htnwallet's usual
 `~/.htnwallet/hoosat-mainnet/keys.json`. Desktops without a tray area (GNOME without an extension)
 simply close the app when the window is closed.

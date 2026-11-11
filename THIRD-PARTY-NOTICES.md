@@ -10,6 +10,7 @@ not this project's.
 | segno | BSD-3-Clause | https://github.com/heuer/segno |
 | Python | PSF License | https://www.python.org |
 | PyInstaller bootloader | GPL-2.0-or-later with a bootloader exception | https://github.com/pyinstaller/pyinstaller |
+| X11 libraries, Linux build only (libxcb and xcb-util libraries, libxkbcommon) | MIT/X11 | https://gitlab.freedesktop.org/xorg/lib |
 
 ## Qt / PySide6 (LGPL-3.0)
 
