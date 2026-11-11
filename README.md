@@ -99,12 +99,12 @@ This app ──> htnwallet ──> wallet daemon ──> HTND node
 
 Download `htnwallet` and `htnctl` from [HTND](https://github.com/HoosatNetwork/HTND) first.
 
-Put `htnwalletgui-v1.0.1-windows-amd64.exe` (from the [releases page](https://github.com/tjlee92/htn-gui-wallet/releases)) in the same folder as `htnwallet.exe` and `htnctl.exe`, or choose their
+Put `htnwalletgui-vX.X.X-windows-amd64.exe` (from the [releases page](https://github.com/tjlee92/htn-gui-wallet/releases)) in the same folder as `htnwallet.exe` and `htnctl.exe`, or choose their
 folder in Settings. The app looks only in those two places, never on the system `PATH`.
 
 ### On Linux
 
-Unpack `htnwalletgui-v1.0.1-linux-amd64.tar.gz`, put `htnwallet` and `htnctl` in the `htnwalletgui` folder beside
+Unpack `htnwalletgui-vX.X.X-linux-amd64.tar.gz`, put `htnwallet` and `htnctl` in the `htnwalletgui` folder beside
 the `htnwalletgui` program, and run `./htnwalletgui`. Run `sh install.sh` once to add it to the
 applications menu. It needs Ubuntu 22.04, Debian 12, Mint 21, Fedora 36 or newer (x86-64).
 
