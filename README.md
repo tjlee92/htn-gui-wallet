@@ -104,13 +104,8 @@ folder in Settings. The app looks only in those two places, never on the system 
 
 ### On Linux
 
-Unpack `htnwalletgui-vX.X.X-linux-amd64.tar.gz` into your HTND folder, beside `htnwallet` and `htnctl`:
-
-```sh
-tar -xzf htnwalletgui-vX.X.X-linux-amd64.tar.gz --strip-components=1 -C /path/to/HTND/bin
-```
-
-Then run `./htnwalletgui` from that folder. Run `sh install.sh` once to add it to the
+Unpack `htnwalletgui-vX.X.X-linux-amd64.tar.gz` and put its files in your HTND folder, beside
+`htnwallet` and `htnctl`. Run `./htnwalletgui`. Run `sh install.sh` once to add it to the
 applications menu. It needs Ubuntu 22.04, Debian 12, Mint 21, Fedora 36 or newer (x86-64).
 
 Settings are kept in `~/.config/guiwallet`, and the wallet file is htnwallet's usual
