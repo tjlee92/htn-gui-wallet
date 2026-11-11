@@ -99,13 +99,18 @@ This app ──> htnwallet ──> wallet daemon ──> HTND node
 
 Download `htnwallet` and `htnctl` from [HTND](https://github.com/HoosatNetwork/HTND) first.
 
-Put `htnwalletgui-vX.X.X-windows-amd64.exe` (from the [releases page](https://github.com/tjlee92/htn-gui-wallet/releases)) in the same folder as `htnwallet.exe` and `htnctl.exe`, or choose their
+Put `htnwalletgui-vX.X.X-windows-amd64.exe` (from the [releases page](https://github.com/tjlee92/htn-gui-wallet/releases)) in your HTND folder, beside `htnwallet.exe` and `htnctl.exe`, or choose their
 folder in Settings. The app looks only in those two places, never on the system `PATH`.
 
 ### On Linux
 
-Unpack `htnwalletgui-vX.X.X-linux-amd64.tar.gz`, put `htnwallet` and `htnctl` in the `htnwalletgui` folder beside
-the `htnwalletgui` program, and run `./htnwalletgui`. Run `sh install.sh` once to add it to the
+Unpack `htnwalletgui-vX.X.X-linux-amd64.tar.gz` into your HTND folder, beside `htnwallet` and `htnctl`:
+
+```sh
+tar -xzf htnwalletgui-vX.X.X-linux-amd64.tar.gz --strip-components=1 -C /path/to/HTND/bin
+```
+
+Then run `./htnwalletgui` from that folder. Run `sh install.sh` once to add it to the
 applications menu. It needs Ubuntu 22.04, Debian 12, Mint 21, Fedora 36 or newer (x86-64).
 
 Settings are kept in `~/.config/guiwallet`, and the wallet file is htnwallet's usual
