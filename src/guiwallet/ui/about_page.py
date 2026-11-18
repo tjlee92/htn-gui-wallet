@@ -10,7 +10,7 @@ from PySide6.QtWidgets import QHBoxLayout, QLabel, QPushButton, QVBoxLayout, QWi
 from guiwallet import __version__
 from guiwallet.core.updates import APP_RELEASES, APP_REPO, HTND_RELEASES, HTND_REPO, Release, is_newer, plain_version
 from guiwallet.ui import theme
-from guiwallet.ui.theme import AMBER_TEXT, ASSETS
+from guiwallet.ui.theme import AMBER_TEXT, ASSETS, GREEN_TEXT
 from guiwallet.ui.widgets import card, divider, label, page_layout
 
 DISCORD_URL = "https://discord.gg/mtVfyFfMZq"
@@ -18,6 +18,7 @@ APP_URL = f"https://github.com/{APP_REPO}"
 HTND_URL = f"https://github.com/{HTND_REPO}"
 ISSUES_URL = f"{APP_URL}/issues"
 LICENCE_URL = f"{APP_URL}/blob/main/LICENSE"
+HOOSATWORLD_URL = "https://hoosatworld.net/#run-node"
 EXPLORERS = {"EU": "https://explorer-eu.hoosat.network/", "NZ": "https://explorer-nz.hoosat.network/"}
 MUTED = "#8D98B0"
 ERROR = "#F28B82"
@@ -81,6 +82,7 @@ class AboutPage(QWidget):
         self.app_release: Release | None = None
         self.htnd_release: Release | None = None
         layout = page_layout(self, "About", "Who makes this app, where the code lives, and where to get help")
+        layout.setContentsMargins(32, 28, 32, 18)  # A little less at the bottom, so the full page fits the window.
 
         head = card()
         head_layout = QHBoxLayout(head)
@@ -91,12 +93,11 @@ class AboutPage(QWidget):
         head_layout.addWidget(owl, 0, Qt.AlignmentFlag.AlignTop)
         words = QVBoxLayout()
         words.setSpacing(3)
-        words.addWidget(label("HTN GUI Wallet", "dialogTitle"))
+        words.addWidget(label("Hoosat GUI Wallet", "dialogTitle"))
         words.addWidget(label(f"Version {__version__}", "muted"))
         words.addSpacing(4)
         blurb = label(
-            "A desktop wallet for Hoosat (HTN). It runs htnwallet from HTND for you, so you can send, receive "
-            "and compound without the command line.",
+            "A desktop wallet for Hoosat (HTN): send, receive and compound without the command line.",
             "subtitle",
         )
         blurb.setWordWrap(True)
@@ -107,6 +108,7 @@ class AboutPage(QWidget):
         pills.addWidget(_pill("GUI Wallet", APP_URL, "github.png", "githubPill"))
         pills.addWidget(_pill("Official HTND", HTND_URL, "github.png", "githubPill"))
         pills.addWidget(_pill("Discord", DISCORD_URL, "discord.png", "discordPill"))
+        pills.addWidget(_pill("Report a problem", ISSUES_URL, "github.png", "githubPill"))
         pills.addStretch()
         words.addLayout(pills)
         head_layout.addLayout(words, 1)
@@ -137,14 +139,10 @@ class AboutPage(QWidget):
         )
 
         rows = [
-            _row("HTN GUI Wallet", self.app_status, self.app_download),
-            _row("HTND (htnwallet)", self.htnd_status, self.htnd_download),
-            _row("Report a problem", "Bugs and feature requests go to the GitHub issues page",
-                 _link_button("Open", ISSUES_URL)),
+            _row("Hoosat GUI Wallet", self.app_status, self.app_download),
+            _row("HTND (Node & Wallet Tools)", self.htnd_status, self.htnd_download),
             _row("Block explorer", "Look up any address or transaction",
                  _link_button("EU", EXPLORERS["EU"]), _link_button("NZ", EXPLORERS["NZ"])),
-            _row("Licence", "GNU GPL v3 or later. Free to use and share, with no warranty",
-                 _link_button("Read", LICENCE_URL)),
         ]
         links = card()
         links_layout = QVBoxLayout(links)
@@ -158,12 +156,30 @@ class AboutPage(QWidget):
         layout.addWidget(links)
         layout.addSpacing(12)
 
-        privacy = label(
-            "Your password, seed phrase and keys never leave this PC. The app has no servers, accounts, tracking "
-            "or analytics.",
-            "note",
+        # Projects by other HTN users, listed out of goodwill. Nobody pays for a place here.
+        community = card()
+        community_layout = QVBoxLayout(community)
+        community_layout.setContentsMargins(22, 6, 22, 6)
+        community_layout.setSpacing(0)
+        community_heading = label("COMMUNITY", "sectionLabel")
+        community_heading.setContentsMargins(0, 10, 0, 2)
+        community_layout.addWidget(community_heading)
+        community_layout.addWidget(
+            _row("Hoosat World", "Hoosat node map, network stats and an all-in-one HTN Node Manager. By Chargn",
+                 _link_button("Open", HOOSATWORLD_URL))
         )
+        layout.addWidget(community)
+        layout.addSpacing(12)
+
+        privacy = label("", "note")
         privacy.setWordWrap(True)
+        privacy.setOpenExternalLinks(True)
+        privacy.setToolTip(LICENCE_URL)
+        theme.set_rich_text(
+            privacy,
+            "Your keys never leave this PC. No servers, accounts, tracking or analytics.  ·  GNU GPL v3, no warranty: "
+            f'<a style="color: {GREEN_TEXT};" href="{LICENCE_URL}">licence</a>',
+        )
         layout.addWidget(privacy)
         layout.addStretch()
         self.show_versions(None, None, None, False, False, False, None)
