@@ -120,7 +120,7 @@ from guiwallet.ui import theme
 from guiwallet.ui.about_page import AboutPage
 from guiwallet.ui.address_dialog import AddAddressDialog
 from guiwallet.ui.background import run_in_background
-from guiwallet.ui.compound_dialog import StartCompoundDialog, StopCompoundDialog
+from guiwallet.ui.compound_dialog import OutsideCompoundsDialog, StartCompoundDialog, StopCompoundDialog
 from guiwallet.ui.history_page import HistoryPage, RefreshHistoryDialog
 from guiwallet.ui.pages import ReceivePage, SendPage, SettingsPage, WalletPage
 from guiwallet.ui.send_dialog import SendDialog
@@ -1554,8 +1554,10 @@ class MainWindow(QMainWindow):
             self._show_banner(SENDING_MESSAGE)
             return
         if self.really_exit or self.tray is None:
-            event.accept()
-            self._exit_app()
+            if self._exit_app():
+                event.accept()
+            else:
+                event.ignore()
             return
 
         action = self.settings.close_action
@@ -1573,22 +1575,60 @@ class MainWindow(QMainWindow):
         if action == "tray":
             event.ignore()
             self.hide()
-        else:
+        elif self._exit_app():
             event.accept()
-            self._exit_app()
+        else:
+            event.ignore()
 
-    def _exit_app(self) -> None:
-        """Exit the app. htnwallet is deliberately left exactly as it is."""
+    def _exit_app(self, *_args) -> bool:
+        """Exit the app, unless the user cancels. htnwallet is deliberately left exactly as it is. The
+        auto-compounds this app started end with it; for ones started elsewhere, the user is asked."""
+        if self.really_exit:
+            return True
         self._cancel_waiting_send()
         if self.sending:
             self._show_banner(SENDING_MESSAGE)
             self._show_from_tray()
-            return
+            return False
+        if not self._settle_outside_compounds():
+            return False
         self.really_exit = True
         self.compounders.stop_all()  # The system would end them anyway; this does it straight away.
         if self.tray:
             self.tray.hide()
         QApplication.quit()
+        return True
+
+    def _settle_outside_compounds(self) -> bool:
+        """Ask whether to stop the auto-compounds started outside the app. False means don't exit."""
+        own = self.compounders.counts()
+        try:
+            running = find_compounds(own)
+        except Exception:  # A fresh look failed: go by the last one, which is at most a few seconds old.
+            running = self.wallet_page.compounds
+        outside = [compound for compound in running if not compound.started_here and compound.pid not in own]
+        if not outside:
+            return True
+        self._show_from_tray()
+        dialog = OutsideCompoundsDialog(self, outside)
+
+        def stop_all_outside() -> None:
+            for compound in outside:
+                stop_outside_compound(compound)
+
+        def stop() -> None:
+            run_in_background(
+                stop_all_outside,
+                lambda _result: dialog.stopped(),
+                lambda error: dialog.show_error(
+                    (str(error) if isinstance(error, CompoundError) else "Could not stop the auto-compound.")
+                    + " It may still be running."
+                ),
+            )
+
+        dialog.stop_requested.connect(stop)
+        self._exec_blurred(dialog)
+        return dialog.result() == QDialog.DialogCode.Accepted
 
     def show_from_tray(self) -> None:
         """Bring the window back from the tray or the taskbar. Also used when the app is opened again."""

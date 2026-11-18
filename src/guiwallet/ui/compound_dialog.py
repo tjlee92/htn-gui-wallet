@@ -206,3 +206,64 @@ class StopCompoundDialog(_FramedDialog):
         self.keep_button.setEnabled(True)
         self.stop_button.setEnabled(True)
         self.stop_button.setText("Stop")
+
+
+class OutsideCompoundsDialog(_FramedDialog):
+    """Asked on exit while an auto-compound started outside the app, such as from a .bat file, is running.
+    The app's own end with it anyway. Leave running or Stop and exit both exit; closing it cancels the exit."""
+
+    stop_requested = Signal()
+
+    def __init__(self, parent: QWidget, compounds: list[RunningCompound]) -> None:
+        super().__init__(parent, "Stop auto-compound too?")
+        self.choice: str | None = None  # "leave" or "stop", once one of them is pressed.
+        one = len(compounds) == 1
+        intro = label(
+            ("This auto-compound was" if one else "These auto-compounds were")
+            + " started outside the app, such as from a .bat file, and "
+            + ("is" if one else "are")
+            + " still running:",
+            "dialogValue",
+        )
+        intro.setWordWrap(True)
+        self.layout_.addWidget(intro)
+        for compound in compounds:
+            source = ", ".join(shorten_address(a) for a in compound.from_addresses) or "Every address in the wallet"
+            line = label(f"{source}   ·   every {compound.interval} seconds", "address")
+            line.setToolTip("\n".join(compound.from_addresses))
+            self.layout_.addWidget(line)
+        question = label(
+            f"Stop {'it' if one else 'them'} as well, or leave {'it' if one else 'them'} running after the app "
+            "closes?",
+            "muted",
+        )
+        question.setWordWrap(True)
+        self.layout_.addWidget(question)
+        self.leave_button, self.stop_button = self._buttons("Leave running", "Stop and exit")
+        self.leave_button.clicked.disconnect()
+        self.leave_button.clicked.connect(lambda: self._choose("leave"))
+        self.stop_button.clicked.connect(self._stop_clicked)
+
+    def _choose(self, choice: str) -> None:
+        self.choice = choice
+        self.busy = False
+        self.accept()
+
+    def _stop_clicked(self) -> None:
+        self.busy = True
+        self.error.hide()
+        self.leave_button.setEnabled(False)
+        self.stop_button.setEnabled(False)
+        self.stop_button.setText("Stopping…")
+        self.stop_requested.emit()
+
+    def stopped(self) -> None:
+        self._choose("stop")
+
+    def show_error(self, message: str) -> None:
+        """Something is still running. Exiting anyway leaves it; closing the window cancels the exit."""
+        super().show_error(message)
+        self.leave_button.setEnabled(True)
+        self.leave_button.setText("Exit anyway")
+        self.stop_button.setEnabled(True)
+        self.stop_button.setText("Try again")
