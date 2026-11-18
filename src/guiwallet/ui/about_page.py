@@ -18,6 +18,7 @@ APP_URL = f"https://github.com/{APP_REPO}"
 HTND_URL = f"https://github.com/{HTND_REPO}"
 ISSUES_URL = f"{APP_URL}/issues"
 LICENCE_URL = f"{APP_URL}/blob/main/LICENSE"
+HOOSAT_URL = "https://hoosat.network/"
 HOOSATWORLD_URL = "https://hoosatworld.net/#run-node"
 EXPLORERS = {"EU": "https://explorer-eu.hoosat.network/", "NZ": "https://explorer-nz.hoosat.network/"}
 MUTED = "#8D98B0"
@@ -141,8 +142,9 @@ class AboutPage(QWidget):
         rows = [
             _row("Hoosat GUI Wallet", self.app_status, self.app_download),
             _row("HTND (Node & Wallet Tools)", self.htnd_status, self.htnd_download),
-            _row("Block explorer", "Look up any address or transaction",
-                 _link_button("EU", EXPLORERS["EU"]), _link_button("NZ", EXPLORERS["NZ"])),
+            _row("Hoosat Network", "Official website and block explorers",
+                 _link_button("Website", HOOSAT_URL), _link_button("Explorer EU", EXPLORERS["EU"]),
+                 _link_button("Explorer NZ", EXPLORERS["NZ"])),
         ]
         links = card()
         links_layout = QVBoxLayout(links)
