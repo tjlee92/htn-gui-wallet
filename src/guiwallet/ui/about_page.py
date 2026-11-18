@@ -13,7 +13,7 @@ from guiwallet.ui import theme
 from guiwallet.ui.theme import AMBER_TEXT, ASSETS
 from guiwallet.ui.widgets import card, divider, label, page_layout
 
-DISCORD_URL = "https://discord.gg/VQsraB2Y8"
+DISCORD_URL = "https://discord.gg/mtVfyFfMZq"
 APP_URL = f"https://github.com/{APP_REPO}"
 HTND_URL = f"https://github.com/{HTND_REPO}"
 ISSUES_URL = f"{APP_URL}/issues"
