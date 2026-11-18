@@ -23,6 +23,7 @@ class Settings:
     history_source: str = "EU"  # The explorer Transaction History reads from: "EU" or "NZ".
     # Shows the htnwallet command (password masked) and its replies in the send window.
     show_debug: bool = False
+    theme: str = "dark"  # "dark" or "light". Switched with the button beside minimize.
 
     @property
     def daemon_port(self) -> int:
@@ -66,6 +67,8 @@ def load_settings(path: Path | None = None) -> Settings:
         settings.close_action = "ask"
     if settings.history_source not in ("EU", "NZ"):
         settings.history_source = "EU"
+    if settings.theme not in ("dark", "light"):
+        settings.theme = "dark"
     try:
         validate_daemon_address(settings.daemon_address)
     except InvalidInput:

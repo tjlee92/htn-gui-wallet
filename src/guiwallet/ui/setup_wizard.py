@@ -66,6 +66,7 @@ from guiwallet.core.validation import InvalidInput, validate_daemon_address, val
 from guiwallet.core.wallet import format_htn
 from guiwallet.ui.background import run_in_background
 from guiwallet.ui.compound_dialog import _FramedDialog
+from guiwallet.ui import theme
 from guiwallet.ui.theme import AMBER, GREEN, RED, app_icon
 from guiwallet.ui.widgets import StatusDot, TitleBar, copy_icon, label, official_rpc_hint, shorten_address
 
@@ -94,7 +95,7 @@ class _Radio(QWidget):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         enabled = self.isEnabled()
-        painter.setPen(QColor(GREEN if self.checked and enabled else "#4A5778"))
+        painter.setPen(QColor(GREEN if self.checked and enabled else theme.colour("#4A5778")))
         painter.drawEllipse(1, 1, 16, 16)
         if self.checked:
             painter.setPen(Qt.PenStyle.NoPen)
@@ -291,6 +292,7 @@ class SetupWizard(QDialog):
 
         title_bar = TitleBar("HTN GUI Wallet", app_icon())
         title_bar.minimize_button.clicked.connect(self.showMinimized)
+        title_bar.theme_button.clicked.connect(self._switch_theme)
         title_bar.close_button.clicked.connect(self.reject)
         self.pages = QStackedWidget()
         root = QFrame()
@@ -371,6 +373,12 @@ class SetupWizard(QDialog):
         self.welcome_back.clicked.connect(self.reject)
         self.welcome_next.clicked.connect(self._welcome_next)
         self.pages.addWidget(page)
+
+    def _switch_theme(self) -> None:
+        """Light or dark, at once. Kept in the draft too, so finishing the wizard doesn't undo it. On the
+        first launch it's saved with the rest when the wizard finishes; otherwise the main window saves it."""
+        theme.set_mode(theme.LIGHT_MODE if theme.mode() == theme.DARK else theme.DARK)
+        self.settings.theme = self.draft.theme = theme.mode()
 
     def _detect(self) -> None:
         """What's already on this PC: a running htnwallet, a wallet file, and htnwallet.exe itself."""
@@ -746,7 +754,7 @@ class SetupWizard(QDialog):
         row.addWidget(self.seed_written)
         row.addStretch()
         self.copy_button = QPushButton("  Copy words")
-        self.copy_button.setIcon(copy_icon("#AEB8CC"))
+        theme.set_icon(self.copy_button, lambda: copy_icon("#AEB8CC"))
         self.copy_button.setIconSize(QSize(14, 14))
         self.copy_button.setFixedWidth(BUTTON_WIDTH)
         self.copy_button.setAutoDefault(False)
@@ -794,12 +802,12 @@ class SetupWizard(QDialog):
 
     def _copy_words(self) -> None:
         QGuiApplication.clipboard().setText(" ".join(self.words))
-        self.copy_button.setIcon(copy_icon(GREEN, copied=True))
+        theme.set_icon(self.copy_button, lambda: copy_icon(GREEN, copied=True))
         self.copy_button.setText("  Copied")
         self.copied_timer.start()
 
     def _copy_reset(self) -> None:
-        self.copy_button.setIcon(copy_icon("#AEB8CC"))
+        theme.set_icon(self.copy_button, lambda: copy_icon("#AEB8CC"))
         self.copy_button.setText("  Copy words")
 
     def _build_check(self) -> None:

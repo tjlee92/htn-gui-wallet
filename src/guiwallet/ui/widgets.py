@@ -7,6 +7,8 @@ from PySide6.QtCore import QPointF, QRect, QRectF, QSize, Qt, QTimer
 from PySide6.QtGui import QColor, QGuiApplication, QIcon, QPainter, QPainterPath, QPen, QPixmap
 from PySide6.QtWidgets import QFrame, QHBoxLayout, QLabel, QPushButton, QVBoxLayout, QWidget
 
+from guiwallet.ui import theme
+
 QUIET_ZONE = 4  # QR scanners need this many blank modules around the code.
 HIDDEN_AMOUNT = "••••"
 
@@ -107,7 +109,7 @@ class WindowButton(QPushButton):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         hovered_close = self.is_close and self.underMouse()
-        painter.setPen(QPen(QColor("#FFFFFF" if hovered_close else "#AEB8CC"), 1.5))
+        painter.setPen(QPen(QColor("#FFFFFF" if hovered_close else theme.colour("#AEB8CC")), 1.5))
         x, y = self.width() / 2, self.height() / 2
         if self.is_close:
             painter.drawLine(QPointF(x - 4.5, y - 4.5), QPointF(x + 4.5, y + 4.5))
@@ -116,8 +118,53 @@ class WindowButton(QPushButton):
             painter.drawLine(QPointF(x - 5, y), QPointF(x + 5, y))
 
 
+class ThemeButton(QPushButton):
+    """Shows the mode the app is in: a moon in dark mode, a sun in light mode. Pressing it switches."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.setObjectName("windowButton")
+        self.setFixedSize(32, 26)
+        self.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self._describe(theme.mode())
+        theme.notifier.changed.connect(self._describe)
+
+    def _describe(self, mode: str) -> None:
+        text = "Dark mode (click for light)" if mode == theme.DARK else "Light mode (click for dark)"
+        self.setToolTip(text)
+        self.setAccessibleName(text)
+
+    def paintEvent(self, event) -> None:
+        super().paintEvent(event)  # The hover background comes from the theme.
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        tone = QColor(theme.colour("#E7ECF5" if self.underMouse() else "#AEB8CC"))
+        x, y = self.width() / 2, self.height() / 2
+        if theme.mode() == theme.DARK:  # A crescent moon.
+            painter.setPen(Qt.PenStyle.NoPen)
+            painter.setBrush(tone)
+            moon = QPainterPath()
+            moon.addEllipse(QPointF(x, y), 6, 6)
+            bite = QPainterPath()
+            bite.addEllipse(QPointF(x + 3.6, y - 2.6), 5, 5)
+            painter.drawPath(moon.subtracted(bite))
+        else:  # A sun: a ring with eight short rays.
+            painter.setPen(QPen(tone, 1.5, c=Qt.PenCapStyle.RoundCap))
+            painter.setBrush(Qt.BrushStyle.NoBrush)
+            painter.drawEllipse(QPointF(x, y), 3.2, 3.2)
+            for ray in range(8):
+                angle = ray * math.pi / 4
+                painter.drawLine(
+                    QPointF(x + 5.6 * math.cos(angle), y + 5.6 * math.sin(angle)),
+                    QPointF(x + 7.4 * math.cos(angle), y + 7.4 * math.sin(angle)),
+                )
+
+
 class TitleBar(QFrame):
-    """Replaces the Windows title bar: the app's name, minimize, close, and drag to move."""
+    """Replaces the Windows title bar: the app's name, the mode switch, minimize, close, and drag to move.
+
+    Windows that can be minimized (the main window and the Setup Wizard) have the mode switch too.
+    """
 
     def __init__(self, title: str, icon: QIcon, can_minimize: bool = True, version: str = "") -> None:
         super().__init__()
@@ -127,7 +174,7 @@ class TitleBar(QFrame):
         layout.setContentsMargins(14, 0, 8, 0)
         layout.setSpacing(8)
         emblem = QLabel()
-        emblem.setPixmap(icon.pixmap(18, 18))
+        emblem.setPixmap(theme.emblem(18))
         layout.addWidget(emblem)
         layout.addWidget(label(title, "appName"))
         if version:
@@ -135,6 +182,8 @@ class TitleBar(QFrame):
             layout.addWidget(self.version)
         layout.addStretch()
         if can_minimize:
+            self.theme_button = ThemeButton()
+            layout.addWidget(self.theme_button)
             self.minimize_button = WindowButton("Minimize")
             layout.addWidget(self.minimize_button)
         self.close_button = WindowButton("Close", is_close=True)
@@ -178,7 +227,7 @@ class EyeButton(QPushButton):
     def paintEvent(self, _event) -> None:
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-        painter.setPen(QPen(QColor("#E7ECF5" if self.underMouse() else "#8D98B0"), 1.5))
+        painter.setPen(QPen(QColor(theme.colour("#E7ECF5" if self.underMouse() else "#8D98B0")), 1.5))
         x, y = self.width() / 2, self.height() / 2
         outline = QPainterPath(QPointF(x - 9, y))
         outline.quadTo(QPointF(x, y - 9), QPointF(x + 9, y))
@@ -249,9 +298,10 @@ def _icon_canvas() -> tuple[QPixmap, QPainter]:
 
 
 def cycle_icon(colour: str) -> QIcon:
-    """Two arrows chasing each other round a circle: the usual sign for something that repeats."""
+    """Two arrows chasing each other round a circle: the usual sign for something that repeats.
+    The colour is a dark-mode one; light mode draws it in its partner colour."""
     pixmap, painter = _icon_canvas()
-    painter.setPen(QPen(QColor(colour), 5.5, c=Qt.PenCapStyle.RoundCap, j=Qt.PenJoinStyle.RoundJoin))
+    painter.setPen(QPen(QColor(theme.colour(colour)), 5.5, c=Qt.PenCapStyle.RoundCap, j=Qt.PenJoinStyle.RoundJoin))
     centre, radius, head = 32, 20, 8
     box = QRectF(centre - radius, centre - radius, 2 * radius, 2 * radius)
     for start in (30, 210):
@@ -272,7 +322,7 @@ def cycle_icon(colour: str) -> QIcon:
 def copy_icon(colour: str, copied: bool = False) -> QIcon:
     """Two overlapping pages, or a tick once something has been copied."""
     pixmap, painter = _icon_canvas()
-    painter.setPen(QPen(QColor(colour), 5, c=Qt.PenCapStyle.RoundCap, j=Qt.PenJoinStyle.RoundJoin))
+    painter.setPen(QPen(QColor(theme.colour(colour)), 5, c=Qt.PenCapStyle.RoundCap, j=Qt.PenJoinStyle.RoundJoin))
     if copied:
         painter.drawPolyline([QPointF(12, 33), QPointF(26, 47), QPointF(52, 18)])
     else:
@@ -298,7 +348,7 @@ class CopyIconButton(QPushButton):
         self.clicked.connect(self._copy)
 
     def _show(self, copied: bool) -> None:
-        self.setIcon(copy_icon(ICON_GREEN if copied else ICON_MUTED, copied))
+        theme.set_icon(self, lambda: copy_icon(ICON_GREEN if copied else ICON_MUTED, copied))
         self.setToolTip("Copied" if copied else self.tooltip)
 
     def _copy(self) -> None:

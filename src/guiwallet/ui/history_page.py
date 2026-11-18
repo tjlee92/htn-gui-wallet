@@ -21,7 +21,9 @@ from PySide6.QtWidgets import (
 from guiwallet.core.history import KEEP_DAYS, Kind, Row, address_link, transaction_link
 from guiwallet.core.wallet import WalletBalance, format_htn
 from guiwallet.ui.compound_dialog import _FramedDialog
-from guiwallet.ui.theme import AMBER, GREEN
+from guiwallet.ui import theme
+from guiwallet.ui.theme import AMBER_TEXT as AMBER
+from guiwallet.ui.theme import GREEN_TEXT as GREEN
 from guiwallet.ui.widgets import HIDDEN_AMOUNT, address_text, card, divider, label, page_layout, shorten_address
 
 ROWS_PER_PAGE = 8
@@ -38,13 +40,14 @@ PAGE_NUMBERS_SHOWN = 3  # The first few pages, then "…" and the last.
 
 def _text(value: str, style: str = "font-size: 13px;") -> QLabel:
     widget = QLabel(value)
-    widget.setStyleSheet(style)
+    theme.set_style(widget, style)
     return widget
 
 
 def _links(urls: dict[str, str], prefix: str = "") -> QLabel:
     html = " &nbsp; ".join(f'<a style="color: {GREEN};" href="{url}">{site}</a>' for site, url in urls.items())
-    widget = _text(prefix + html)
+    widget = _text("")
+    theme.set_rich_text(widget, prefix + html)
     widget.setOpenExternalLinks(True)
     widget.setTextInteractionFlags(Qt.TextInteractionFlag.TextBrowserInteraction)
     return widget
@@ -172,9 +175,10 @@ class HistoryPage(QWidget):
         self.progress.setRange(0, KEEP_DAYS)
         self.progress.setTextVisible(False)
         self.progress.setFixedSize(110, 6)
-        self.progress.setStyleSheet(
+        theme.set_style(
+            self.progress,
             "QProgressBar { background: #1A2338; border: none; border-radius: 3px; }"
-            f"QProgressBar::chunk {{ background: {GREEN}; border-radius: 3px; }}"
+            f"QProgressBar::chunk {{ background: {theme.GREEN}; border-radius: 3px; }}",
         )
         build.addWidget(self.progress)
         self.building.setToolTip(
@@ -406,9 +410,7 @@ class HistoryPage(QWidget):
         button.setEnabled(enabled)
         button.setProperty("current", current)
         if current:
-            button.setStyleSheet(
-                f"background: #1C2A47; color: #B5F27A; font-weight: 600; border-color: #1C2A47;"
-            )
+            theme.set_style(button, "background: #1C2A47; color: #B5F27A; font-weight: 600; border-color: #1C2A47;")
         button.clicked.connect(lambda _checked=False, page=page: self._go_to(page))
         return button
 
@@ -419,5 +421,5 @@ class HistoryPage(QWidget):
             links = {site: address_link(site, address) for site in ("EU", "NZ")}
             prefix = "Older history on the explorer: &nbsp; " if self.span else "Older transactions: &nbsp; "
             older = _links(links, prefix)
-            older.setStyleSheet(f"font-size: 12px; color: {MUTED};")
+            theme.set_style(older, f"font-size: 12px; color: {MUTED};")
             self.older_layout.addWidget(older)

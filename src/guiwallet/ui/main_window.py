@@ -9,6 +9,7 @@ import dataclasses
 import math
 import subprocess
 import time
+from datetime import datetime
 from decimal import Decimal
 from enum import Enum, auto
 from pathlib import Path
@@ -82,6 +83,7 @@ from guiwallet.core.send import (
     SendOutcome,
     SendRequest,
     SendResult,
+    blame_compound,
     command_preview,
     forget_send,
     interrupted_send_message,
@@ -103,7 +105,19 @@ from guiwallet.core.nodes import (
 from guiwallet.core.settings import Settings, save_settings, settings_path
 from guiwallet.core.setup import tool_folders
 from guiwallet.core.tools import Tool, ToolError, find_tool
+from guiwallet.core.updates import (
+    APP_REPO,
+    CHECK_EVERY_SECONDS,
+    FIRST_CHECK_DELAY_SECONDS,
+    HTND_REPO,
+    Release,
+    UpdateCheckError,
+    is_newer,
+    latest_release,
+)
 from guiwallet.core.wallet import WalletOutputError, format_htn, format_htn_exact
+from guiwallet.ui import theme
+from guiwallet.ui.about_page import AboutPage
 from guiwallet.ui.address_dialog import AddAddressDialog
 from guiwallet.ui.background import run_in_background
 from guiwallet.ui.compound_dialog import StartCompoundDialog, StopCompoundDialog
@@ -237,6 +251,15 @@ class MainWindow(QMainWindow):
         self.history_last_request = 0.0  # Requests are kept at least HISTORY_PAGE_GAP_MS apart, whatever asks.
         self.hidden_ids = load_hidden_ids(history_folder(settings_path()))  # Compounds this app started.
         self.receive_addresses: list[str] = []
+        # What GitHub said at the last update check. A failed check keeps the release found before it.
+        self.app_release: Release | None = None
+        self.htnd_release: Release | None = None
+        self.app_check_failed = False
+        self.htnd_check_failed = False
+        self.checking_updates = False
+        self.updates_checked_at: datetime | None = None
+        # The htnwallet version seen last, kept while it's stopped so HTND can still be compared.
+        self.htnd_version: str | None = None
         # Goes up whenever the user presses Start or Stop. A check that began before that is
         # out of date when it finishes, so its result is ignored.
         self.generation = 0
@@ -267,16 +290,21 @@ class MainWindow(QMainWindow):
         self.send_page = SendPage(settings.network)
         self.send_page.labels = self.labels
         self.send_page.review_requested.connect(self._review_send)
+        self.send_page.stop_compound_requested.connect(self._compound_clicked)
+        self.send_page.wallet_page_requested.connect(lambda: self.navigation.button(0).click())
         self.history_page = HistoryPage()
         self.history_page.labels = self.labels
         self.history_page.address_changed.connect(self._history_address_changed)
         self.history_page.refresh_clicked.connect(self._history_refresh_clicked)
+        self.about_page = AboutPage()
+        self.about_page.check_requested.connect(self._check_updates)
         screens = {
             "Wallet": self.wallet_page,
             "Send": self.send_page,
             "Receive": self.receive_page,
             "Transaction History": self.history_page,
             "Settings": self.settings_page,
+            "About": self.about_page,
         }
 
         self.stack = QStackedWidget()
@@ -294,6 +322,9 @@ class MainWindow(QMainWindow):
         self.title_bar = TitleBar(APP_NAME, app_icon(), version=__version__)
         self.title_bar.minimize_button.clicked.connect(self.showMinimized)
         self.title_bar.close_button.clicked.connect(self.close)
+        self.title_bar.theme_button.clicked.connect(self._switch_theme)
+        # The Setup Wizard can switch it too, so whichever window did, the saved setting follows.
+        theme.notifier.changed.connect(self._theme_changed)
 
         body = QHBoxLayout()
         body.setSpacing(0)
@@ -333,6 +364,11 @@ class MainWindow(QMainWindow):
         self.node_timer = QTimer(self, interval=NODE_PING_SECONDS * 1000)
         self.node_timer.timeout.connect(self._ping_node)
         self.node_timer.start()
+        # Runs even while the window is hidden, so the badge is ready whenever it's opened.
+        self.update_timer = QTimer(self, interval=CHECK_EVERY_SECONDS * 1000)
+        self.update_timer.timeout.connect(self._check_updates)
+        self.update_timer.start()
+        QTimer.singleShot(FIRST_CHECK_DELAY_SECONDS * 1000, self._check_updates)
 
         self._show_not_running("htnwallet not running")
         self.state = State.CHECKING
@@ -404,6 +440,15 @@ class MainWindow(QMainWindow):
             button.setChecked(index == 0)
             self.navigation.addButton(button, index)
             layout.addWidget(button)
+        # How many updates were found, in red at the end of About.
+        about_row = QHBoxLayout(self.navigation.button(list(screens).index("About")))
+        about_row.setContentsMargins(0, 0, 12, 0)
+        about_row.addStretch()
+        self.update_badge = label("", "navBadge")
+        self.update_badge.setFixedSize(20, 20)
+        self.update_badge.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.update_badge.hide()
+        about_row.addWidget(self.update_badge)
         self.navigation.idClicked.connect(self.stack.setCurrentIndex)
         self.navigation.idClicked.connect(lambda _index: self._history_opened())
 
@@ -595,6 +640,9 @@ class MainWindow(QMainWindow):
     def _show_running(self, version: str | None) -> None:
         if version:
             self.daemon_version = version
+            if version != self.htnd_version:
+                self.htnd_version = version
+                self._show_updates()
         if self.state is not State.RUNNING:
             self.state = State.RUNNING
             self.check_count = 1
@@ -1021,7 +1069,7 @@ class MainWindow(QMainWindow):
         dialog.show_sending()
         run_in_background(
             lambda: run_send(tool, arguments),
-            lambda outcome: self._send_finished(dialog, outcome),
+            lambda outcome: self._send_finished(dialog, self._blame_compound(outcome, request)),
             lambda error: self._send_failed(dialog, error),
         )
 
@@ -1048,6 +1096,12 @@ class MainWindow(QMainWindow):
         self.start_stop_button.setEnabled(self.state in (State.RUNNING, State.NOT_RUNNING))
         dialog.show_outcome(outcome)
         self._refresh_everything()
+
+    def _blame_compound(self, outcome: SendOutcome, request: SendRequest) -> SendOutcome:
+        """A send short of spendable coins, while an auto-compound moves them, says so."""
+        if not self.send_page.send_may_hit_compound(request.from_address):
+            return outcome
+        return blame_compound(outcome, any_address=request.from_address is None)
 
     def _report_interrupted_send(self) -> None:
         journal = send_journal_path(settings_path())
@@ -1097,6 +1151,7 @@ class MainWindow(QMainWindow):
             for compound in compounds
         ]
         self.wallet_page.show_compounds(compounds)
+        self.send_page.show_compounds(compounds)
 
     def _compound_clicked(self, address: str) -> None:
         compound = self.wallet_page.compound_for(address)
@@ -1422,6 +1477,67 @@ class MainWindow(QMainWindow):
         self.state = State.CHECKING
         self._update_status("Checking for htnwallet…", AMBER, self.settings.daemon_address, "Start", False)
         self._check()
+
+    # ----- Light and dark mode -----
+
+    def _switch_theme(self) -> None:
+        theme.set_mode(theme.LIGHT_MODE if theme.mode() == theme.DARK else theme.DARK)
+
+    def _theme_changed(self, mode: str) -> None:
+        if self.settings.theme != mode:
+            self.settings.theme = mode
+            self._save_quietly()
+
+    # ----- Updates -----
+
+    def _check_updates(self) -> None:
+        """Ask GitHub for the latest release of this app and of HTND."""
+        if self.checking_updates:
+            return
+        self.checking_updates = True
+        self._show_updates()
+
+        def ask(repo: str) -> Release | None:
+            try:
+                return latest_release(repo)
+            except UpdateCheckError:
+                return None
+
+        run_in_background(
+            lambda: (ask(APP_REPO), ask(HTND_REPO)),
+            self._updates_checked,
+            lambda _error: self._updates_checked((None, None)),
+        )
+
+    def _updates_checked(self, releases: tuple[Release | None, Release | None]) -> None:
+        app_release, htnd_release = releases
+        self.checking_updates = False
+        self.app_check_failed, self.htnd_check_failed = app_release is None, htnd_release is None
+        self.app_release = app_release or self.app_release
+        self.htnd_release = htnd_release or self.htnd_release
+        self.updates_checked_at = datetime.now()
+        self._show_updates()
+
+    def update_count(self) -> int:
+        """How many of the app and HTND have a newer release than the one installed."""
+        app_new = self.app_release is not None and is_newer(self.app_release.version, __version__)
+        htnd_new = self.htnd_release is not None and is_newer(self.htnd_release.version, self.htnd_version)
+        return int(app_new) + int(htnd_new)
+
+    def _show_updates(self) -> None:
+        self.about_page.show_versions(
+            self.app_release,
+            self.htnd_release,
+            self.htnd_version,
+            self.app_check_failed,
+            self.htnd_check_failed,
+            self.checking_updates,
+            self.updates_checked_at,
+        )
+        count = self.update_count()
+        self.update_badge.setText(str(count))
+        self.update_badge.setVisible(count > 0)
+        self.update_badge.setToolTip(f"{count} update{'s' if count > 1 else ''} available")
 
     def _save_quietly(self) -> None:
         try:

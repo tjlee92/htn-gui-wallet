@@ -12,6 +12,7 @@ to 10 minutes while it's short of spendable coins, after which it would send wit
 pauses for 2 seconds after each of those messages, so ending it on seeing one can't interrupt a send.
 """
 
+import dataclasses
 import json
 import re
 import time
@@ -39,13 +40,20 @@ _CANNOT_SEND_LINES = (
     "Failed to sign unsigned transactions",
 )
 
+NOT_ENOUGH_SPENDABLE = (
+    "There isn't enough spendable HTN for this amount and its fee. Coins you've only just received "
+    "can't be spent for a few minutes."
+)
+# The same failure while an auto-compound is moving the coins: it, not new coins, is the likely cause.
+COMPOUND_TOOK_COINS = (
+    "There wasn't enough spendable HTN{where}. Auto-compound is running on {which} and keeps moving its "
+    "coins, which then can't be spent for about 3 minutes. Stop auto-compound on the Wallet page, wait "
+    "about 3 minutes, then try again."
+)
+
 # What htnwallet says, and how to explain it. The first match wins.
 _EXPLANATIONS = (
-    (
-        ("Waiting for spendable UTXO", "Insufficient funds"),
-        "There isn't enough spendable HTN for this amount and its fee. Coins you've only just received "
-        "can't be spent for a few minutes.",
-    ),
+    (("Waiting for spendable UTXO", "Insufficient funds"), NOT_ENOUGH_SPENDABLE),
     (
         ("message authentication failed", "Password decryption failed"),
         "Wrong password, or the wallet file in Settings isn't the wallet htnwallet is running.",
@@ -159,6 +167,15 @@ def interpret(run: WatchedRun, timeout: float = SEND_TIMEOUT_SECONDS) -> SendOut
         last_line,
         ids,
     )
+
+
+def blame_compound(outcome: SendOutcome, any_address: bool) -> SendOutcome:
+    """Explain a send that was short of spendable coins while an auto-compound was moving them."""
+    if outcome.result is not SendResult.NOT_SENT or outcome.message != NOT_ENOUGH_SPENDABLE:
+        return outcome
+    where, which = ("", "one of your addresses") if any_address else (" on this address", "it")
+    message = COMPOUND_TOOK_COINS.format(where=where, which=which)
+    return dataclasses.replace(outcome, message=message)
 
 
 def run_send(tool_path: Path, arguments: list[str], timeout: float = SEND_TIMEOUT_SECONDS) -> SendOutcome:

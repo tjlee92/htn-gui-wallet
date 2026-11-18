@@ -15,7 +15,8 @@ from guiwallet.ui.theme import app_icon, apply_theme
 def main() -> int:
     application = QApplication(sys.argv)
     application.setApplicationName(APP_NAME)
-    apply_theme(application)
+    settings = load_settings()
+    apply_theme(application, settings.theme)
     application.setWindowIcon(app_icon())
     # Closing the window may only minimize it to the tray, so the app decides when to exit.
     application.setQuitOnLastWindowClosed(False)
@@ -32,7 +33,6 @@ def main() -> int:
             shown["wizard"].activateWindow()
 
     instance.on_show_requested(show_existing)
-    settings = load_settings()
     action, process, node = None, None, None
     if is_first_launch():
         # Shown once: finishing it saves the settings, and saved settings mean it isn't the first launch.

@@ -229,3 +229,25 @@ def test_the_command_dies_if_the_app_crashes(tmp_path):
     finally:
         if process.poll() is None:
             process.kill()
+
+
+def test_a_short_send_during_auto_compound_blames_the_compound():
+    from guiwallet.core.send import NOT_ENOUGH_SPENDABLE, SendOutcome, SendResult, blame_compound
+
+    short = SendOutcome(SendResult.NOT_SENT, NOT_ENOUGH_SPENDABLE, "Waiting for spendable UTXO")
+    one = blame_compound(short, any_address=False)
+    assert one.message.startswith("There wasn't enough spendable HTN on this address. Auto-compound is running on it")
+    assert one.result is SendResult.NOT_SENT and one.detail == short.detail
+    anywhere = blame_compound(short, any_address=True)
+    assert anywhere.message.startswith("There wasn't enough spendable HTN. Auto-compound is running on one of your")
+
+
+def test_other_outcomes_are_left_alone_by_blame_compound():
+    from guiwallet.core.send import SendOutcome, SendResult, blame_compound
+
+    for outcome in (
+        SendOutcome(SendResult.NOT_SENT, "Wrong password, or the wallet file in Settings isn't the wallet htnwallet is running."),
+        SendOutcome(SendResult.SENT, "Your transaction was handed to the network.", "", ("a" * 64,)),
+        SendOutcome(SendResult.MAY_HAVE_BEEN_SENT, "The app can't tell whether this went through."),
+    ):
+        assert blame_compound(outcome, any_address=True) == outcome

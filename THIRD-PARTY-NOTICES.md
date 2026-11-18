@@ -11,6 +11,7 @@ not this project's.
 | Python | PSF License | https://www.python.org |
 | PyInstaller bootloader | GPL-2.0-or-later with a bootloader exception | https://github.com/pyinstaller/pyinstaller |
 | X11 libraries, Linux build only (libxcb and xcb-util libraries, libxkbcommon) | MIT/X11 | https://gitlab.freedesktop.org/xorg/lib |
+| GitHub mark, on the About page's GitHub buttons (from Octicons) | MIT | https://github.com/primer/octicons |
 
 ## Qt / PySide6 (LGPL-3.0)
 
@@ -23,3 +24,8 @@ https://www.gnu.org/licenses/lgpl-3.0.txt.
 
 `htnwallet.exe` and `htnctl.exe` are not part of this program and are not bundled with it.
 They come from the Hoosat project (HTND, ISC licence): https://github.com/HoosatNetwork/HTND
+
+## Logos on the About page
+
+The GitHub mark is from GitHub's Octicons, under the MIT licence. The Discord logo is a trademark
+of Discord Inc., used only on a button that links to Discord. Neither company endorses this app.

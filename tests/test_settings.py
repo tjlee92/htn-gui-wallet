@@ -62,3 +62,16 @@ def test_debug_details_are_off_unless_switched_on(tmp_path):
     assert load_settings(path).show_debug is True
     path.write_text('{"show_debug": "yes"}', encoding="utf-8")
     assert load_settings(path).show_debug is False
+
+
+def test_dark_mode_is_the_default_and_light_is_remembered(tmp_path):
+    assert Settings().theme == "dark"
+    path = tmp_path / "settings.json"
+    save_settings(Settings(theme="light"), path)
+    assert load_settings(path).theme == "light"
+
+
+def test_an_unknown_theme_falls_back_to_dark(tmp_path):
+    path = tmp_path / "settings.json"
+    path.write_text(json.dumps({"theme": "neon"}))
+    assert load_settings(path).theme == "dark"

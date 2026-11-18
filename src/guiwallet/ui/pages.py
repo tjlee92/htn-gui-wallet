@@ -37,6 +37,7 @@ from guiwallet.core.validation import (
     validate_node_address,
 )
 from guiwallet.core.wallet import WalletBalance, format_htn, format_htn_cents, format_htn_exact
+from guiwallet.ui import theme
 from guiwallet.ui.widgets import (
     HIDDEN_AMOUNT,
     ICON_GREEN,
@@ -302,12 +303,12 @@ class WalletPage(QWidget):
         for address, button in self.compound_buttons.items():
             compound = self.compound_for(address)
             if compound is None:
-                button.setIcon(cycle_icon(ICON_GREY))
-                button.setStyleSheet("")
+                theme.set_icon(button, lambda: cycle_icon(ICON_GREY))
+                theme.set_style(button, "")
                 button.setToolTip("Start auto-compound")
                 continue
-            button.setIcon(cycle_icon(ICON_GREEN))
-            button.setStyleSheet(COMPOUND_RUNNING_STYLE)
+            theme.set_icon(button, lambda: cycle_icon(ICON_GREEN))
+            theme.set_style(button, COMPOUND_RUNNING_STYLE)
             target = "itself" if compound.to_address in (None, address) else shorten_address(compound.to_address)
             where = "" if compound.started_here else " (started outside this app)"
             button.setToolTip(
@@ -369,10 +370,10 @@ class WalletPage(QWidget):
         unit_size = 13 if widget.objectName() == "cardValue" else 11
         unit = f'<span style="font-size: {unit_size}px; color: {UNIT_GREY};">&nbsp;HTN</span>'
         if self.balances_hidden:
-            widget.setText(HIDDEN_AMOUNT + unit)
+            theme.set_rich_text(widget, HIDDEN_AMOUNT + unit)
             widget.setToolTip("")
             return
-        widget.setText(format_htn(amount) + unit)
+        theme.set_rich_text(widget, format_htn(amount) + unit)
         widget.setToolTip(f"{format_htn_exact(amount)} HTN")  # The whole figure, on hover.
 
 
@@ -381,10 +382,13 @@ class SendPage(QWidget):
     confirmation does the rest."""
 
     review_requested = Signal(object)
+    stop_compound_requested = Signal(str)  # The address whose auto-compound the notice offers to stop.
+    wallet_page_requested = Signal()
 
     def __init__(self, network: str) -> None:
         super().__init__()
         self.network = network
+        self.compounds: list[RunningCompound] = []
         self.from_addresses: list[str] = []
         self.receive_addresses: list[str] = []
         self.labels: dict[str, str] = {}  # Shared with the main window.
@@ -464,6 +468,7 @@ class SendPage(QWidget):
         grid.setColumnStretch(1, 1)
         form_layout.addWidget(panel)
         form_layout.addSpacing(14)
+        form_layout.addWidget(self._build_compound_notice())
 
         actions = QHBoxLayout()
         hint = "Sending is switched off during the pilot." if switched_off else (
@@ -486,6 +491,98 @@ class SendPage(QWidget):
         self.form.hide()
         layout.addStretch()
 
+    def _build_compound_notice(self) -> QWidget:
+        """The warning shown while an auto-compound could take the coins this send needs."""
+        self.notice_holder = QWidget()  # Holds the gap under the notice too, so hiding it leaves none.
+        holder_layout = QVBoxLayout(self.notice_holder)
+        holder_layout.setContentsMargins(0, 0, 0, 14)
+        notice = QFrame()
+        notice.setObjectName("notice")
+        row = QHBoxLayout(notice)
+        row.setContentsMargins(14, 11, 12, 11)
+        row.setSpacing(14)
+        words = QVBoxLayout()
+        words.setSpacing(3)
+        self.notice_title = label("", "noticeTitle")
+        self.notice_text = label("")
+        self.notice_text.setWordWrap(True)
+        words.addWidget(self.notice_title)
+        words.addWidget(self.notice_text)
+        row.addLayout(words, 1)
+        self.notice_button = QPushButton()
+        self.notice_button.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.notice_button.setAutoDefault(False)
+        self.notice_button.clicked.connect(self._notice_button_clicked)
+        row.addWidget(self.notice_button, 0, Qt.AlignmentFlag.AlignVCenter)
+        holder_layout.addWidget(notice)
+        self.notice_holder.hide()
+        return self.notice_holder
+
+    def show_compounds(self, compounds: list[RunningCompound]) -> None:
+        """Take in the auto-compounds running on this PC, wherever they were started."""
+        self.compounds = compounds
+        self._show_compound_notice()
+
+    def _wallet_addresses(self) -> list[str]:
+        return sorted(set(self.spendable) | set(self.receive_addresses) | set(self.from_addresses or []))
+
+    def compounding_addresses(self) -> list[str]:
+        """The wallet's addresses that an auto-compound is moving coins from."""
+        wallet = self._wallet_addresses()
+        return [address for address in wallet if any(c.covers(address, wallet) for c in self.compounds)]
+
+    def _chosen_from(self) -> tuple[bool, str | None]:
+        """Whether a From is chosen, and which address: None means "Any address"."""
+        if self.tab_group.checkedButton() is None:
+            return False, None
+        if self.own_tab.isChecked():
+            address = self.own_source.currentData()
+            return address is not None, address
+        return True, self.source.currentData()
+
+    def send_may_hit_compound(self, from_address: str | None) -> bool:
+        """Whether a send from this address (None for "Any address") draws on coins being compounded."""
+        compounding = self.compounding_addresses()
+        return bool(compounding) if from_address is None else from_address in compounding
+
+    def _show_compound_notice(self) -> None:
+        chosen, address = self._chosen_from()
+        if not chosen or not self.send_may_hit_compound(address):
+            self.notice_holder.hide()
+            return
+        moved = "Coins it has just moved can't be spent for about 3 minutes"
+        if address is None:
+            count = len(self.compounding_addresses())
+            self.notice_title.setText(f"Auto-compound is running on {count} of your addresses")
+            them = "it" if count == 1 else "them"
+            self.notice_text.setText(
+                f'"Any address" may spend from {them}. {moved}, so this send may fail. '
+                "To be sure, stop auto-compound and wait about 3 minutes."
+            )
+            self.notice_button.setText("Show on Wallet page")
+        elif self.send_all.isChecked():
+            self.notice_title.setText("Stop auto-compound before Send all")
+            self.notice_text.setText(
+                f"Auto-compound is running on this address. {moved}, so Send all would leave them behind or "
+                "fail. Stop it, wait about 3 minutes, then send."
+            )
+            self.notice_button.setText("Stop auto-compound")
+        else:
+            self.notice_title.setText("Auto-compound is running on this address")
+            self.notice_text.setText(
+                "It keeps moving this address's coins, and moved coins can't be spent for about 3 minutes, "
+                "so this send may fail. To be sure, stop auto-compound and wait about 3 minutes."
+            )
+            self.notice_button.setText("Stop auto-compound")
+        self.notice_holder.show()
+
+    def _notice_button_clicked(self) -> None:
+        _chosen, address = self._chosen_from()
+        if address is None:
+            self.wallet_page_requested.emit()
+        else:
+            self.stop_compound_requested.emit(address)
+
     def show_balance(self, balance: WalletBalance) -> None:
         """Take in what each address can spend, which only touches the lists when something changed."""
         self.spendable = {entry.address: entry.available for entry in balance.addresses}
@@ -494,6 +591,7 @@ class SendPage(QWidget):
         self._refresh_own_lists()
         self._show_all_spendable()
         self._show_available()
+        self._show_compound_notice()
 
     def set_receive_addresses(self, addresses: list[str]) -> None:
         """`balance` can leave out an address holding nothing, so `show-addresses` fills the gaps."""
@@ -510,6 +608,7 @@ class SendPage(QWidget):
         self._refresh_own_lists()
         self._show_all_spendable()
         self._show_available()
+        self._show_compound_notice()
 
     def set_balances_hidden(self, hidden: bool) -> None:
         self.balances_hidden = hidden
@@ -630,6 +729,7 @@ class SendPage(QWidget):
         self.own_tab.setChecked(False)
         self.other_tab.setChecked(False)
         self.tab_group.setExclusive(True)
+        self.notice_holder.hide()
         self.form.hide()
 
     def _tab_toggled(self, checked: bool) -> None:
@@ -645,6 +745,7 @@ class SendPage(QWidget):
         self.amount.clear()
         self._clear_error()
         self._show_available()
+        self._show_compound_notice()
         self.form.show()
 
     def _refresh_own_lists(self) -> None:
@@ -684,6 +785,7 @@ class SendPage(QWidget):
         self._show_all_spendable()
         self._clear_error()
         self._show_available()
+        self._show_compound_notice()
 
     def _show_all_spendable(self) -> None:
         """Say how much Send all covers: what the From address holds, or all of it for any address."""
@@ -711,10 +813,11 @@ class SendPage(QWidget):
     def _send_all_toggled(self, checked: bool) -> None:
         self.amount.clear()
         self.amount.setEnabled(not checked)
-        self.amount.setStyleSheet(ALL_SPENDABLE_STYLE if checked else "")
+        theme.set_style(self.amount, ALL_SPENDABLE_STYLE if checked else "")
         self._show_all_spendable()
         self._clear_error()
         self._check_amount()
+        self._show_compound_notice()
 
     def _review_clicked(self) -> None:
         if self.tab_group.checkedButton() is None:

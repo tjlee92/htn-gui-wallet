@@ -69,8 +69,10 @@ no tracking and no analytics.
     (EU or NZ, your choice in Settings). Addresses and transactions are public on the network, but the explorer can see
     that one computer asked about these addresses. It's only asked while the Transaction History
     page is open; if you'd rather it wasn't asked at all, don't open that page.
-  - Nothing else. There's no update check, and nothing is sent to the app's authors. (The tray
-    menu's HTN Explorer links just open the explorer website in your browser.)
+  - The app checks GitHub once a day for new versions of itself and HTND. Only GitHub sees this,
+    and nothing about your wallet is sent. It only tells you: nothing is downloaded or installed.
+  - Nothing else, and nothing is sent to the app's authors. (The tray menu's HTN Explorer links,
+    and the links on the About page, just open those websites in your browser.)
 
 Keep in mind:
 

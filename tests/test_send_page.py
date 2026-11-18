@@ -265,3 +265,95 @@ def test_forgetting_the_wallet_drops_the_chosen_from(page):
     choose(page.source, ALSO_FUNDED)
     page.forget_wallet()
     assert page.source.currentData() is None and page.source.count() == 1
+
+
+# ----- The notice while an auto-compound is running -----
+
+from guiwallet.core.compound import RunningCompound  # noqa: E402
+
+
+def compounding(address):
+    return RunningCompound(pid=1, created=0.0, from_addresses=(address,), to_address=None, interval=60)
+
+
+def test_no_notice_without_an_auto_compound(page):
+    page.other_tab.click()
+    assert not page.notice_holder.isVisible()
+
+
+def test_sending_from_the_compounding_address_shows_the_notice(page):
+    page.show_compounds([compounding(FUNDED)])
+    page.other_tab.click()
+    choose(page.source, FUNDED)
+    assert page.notice_holder.isVisible()
+    assert page.notice_title.text() == "Auto-compound is running on this address"
+    assert page.notice_button.text() == "Stop auto-compound"
+    asked = []
+    page.stop_compound_requested.connect(asked.append)
+    page.notice_button.click()
+    assert asked == [FUNDED]
+
+
+def test_send_all_gets_the_firmer_notice(page):
+    page.show_compounds([compounding(FUNDED)])
+    page.other_tab.click()
+    choose(page.source, FUNDED)
+    page.send_all.setChecked(True)
+    assert page.notice_title.text() == "Stop auto-compound before Send all"
+
+
+def test_any_address_points_to_the_wallet_page(page):
+    page.show_compounds([compounding(FUNDED)])
+    page.other_tab.click()
+    assert page.source.currentData() is None
+    assert page.notice_title.text() == "Auto-compound is running on 1 of your addresses"
+    assert page.notice_button.text() == "Show on Wallet page"
+    asked = []
+    page.wallet_page_requested.connect(lambda: asked.append(True))
+    page.notice_button.click()
+    assert asked == [True]
+
+
+def test_another_address_has_no_notice(page):
+    page.show_compounds([compounding(FUNDED)])
+    page.other_tab.click()
+    choose(page.source, ALSO_FUNDED)
+    assert not page.notice_holder.isVisible()
+
+
+def test_between_my_wallets_follows_the_chosen_from(page):
+    page.show_compounds([compounding(FUNDED)])
+    page.own_tab.click()
+    assert not page.notice_holder.isVisible()  # No From chosen yet.
+    choose(page.own_source, FUNDED)
+    assert page.notice_holder.isVisible()
+
+
+def test_a_whole_wallet_compound_covers_every_address(page):
+    whole = RunningCompound(pid=1, created=0.0, from_addresses=(), to_address=FUNDED, interval=60)
+    page.show_compounds([whole])
+    page.other_tab.click()
+    choose(page.source, ALSO_FUNDED)
+    assert page.notice_holder.isVisible()
+
+
+def test_the_notice_goes_when_the_compound_stops_and_with_clear(page):
+    page.show_compounds([compounding(FUNDED)])
+    page.other_tab.click()
+    choose(page.source, FUNDED)
+    page.show_compounds([])
+    assert not page.notice_holder.isVisible()
+    page.show_compounds([compounding(FUNDED)])
+    assert page.notice_holder.isVisible()
+    page.clear()
+    assert not page.notice_holder.isVisible()
+
+
+def test_the_notice_never_stops_review(page):
+    page.show_compounds([compounding(ALSO_FUNDED)])
+    page.own_tab.click()
+    choose(page.own_source, ALSO_FUNDED)
+    choose(page.own_target, FUNDED)
+    page.amount.setText("5")
+    assert page.notice_holder.isVisible()
+    assert len(reviewed(page)) == 1
