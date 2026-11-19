@@ -11,7 +11,7 @@ from guiwallet import __version__
 from guiwallet.core.updates import APP_RELEASES, APP_REPO, HTND_RELEASES, HTND_REPO, Release, is_newer, plain_version
 from guiwallet.ui import theme
 from guiwallet.ui.theme import AMBER_TEXT, ASSETS, GREEN_TEXT
-from guiwallet.ui.widgets import card, divider, label, page_layout
+from guiwallet.ui.widgets import card, divider, fixed_width, label, page_layout
 
 DISCORD_URL = "https://discord.gg/mtVfyFfMZq"
 APP_URL = f"https://github.com/{APP_REPO}"
@@ -125,7 +125,8 @@ class AboutPage(QWidget):
         heading_layout.addStretch()
         self.check_button = QPushButton("Check for updates")
         self.check_button.setObjectName("smallButton")
-        self.check_button.setFixedSize(140, 30)
+        self.check_button.setFixedHeight(30)
+        fixed_width(140, self.check_button)
         self.check_button.clicked.connect(self.check_requested)
         heading_layout.addWidget(self.check_button)
 

@@ -24,7 +24,7 @@ from guiwallet.ui.compound_dialog import _FramedDialog
 from guiwallet.ui import theme
 from guiwallet.ui.theme import AMBER_TEXT as AMBER
 from guiwallet.ui.theme import GREEN_TEXT as GREEN
-from guiwallet.ui.widgets import HIDDEN_AMOUNT, address_text, card, divider, label, page_layout, shorten_address
+from guiwallet.ui.widgets import HIDDEN_AMOUNT, address_text, card, divider, fixed_width, label, page_layout, shorten_address
 
 ROWS_PER_PAGE = 8
 RED = "#F0706A"
@@ -217,10 +217,10 @@ class HistoryPage(QWidget):
             button = QPushButton(name)
             button.setObjectName("sendTab")
             button.setCheckable(True)
-            button.setFixedWidth(width)
             button.setChecked(name == chosen)
             group.addButton(button)
             row.addWidget(button)
+        fixed_width(width, *group.buttons())
         row_layout.addWidget(frame)
         return group
 

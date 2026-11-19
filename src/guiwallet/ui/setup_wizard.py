@@ -68,7 +68,7 @@ from guiwallet.ui.background import run_in_background
 from guiwallet.ui.compound_dialog import _FramedDialog
 from guiwallet.ui import theme
 from guiwallet.ui.theme import AMBER, GREEN, RED, app_icon
-from guiwallet.ui.widgets import StatusDot, TitleBar, copy_icon, label, official_rpc_hint, shorten_address, warn_box
+from guiwallet.ui.widgets import StatusDot, TitleBar, copy_icon, label, fixed_width, official_rpc_hint, shorten_address, warn_box
 
 BUTTON_WIDTH = 130
 COLUMN_WIDTH = 600
@@ -202,8 +202,8 @@ class _Page(QWidget):
         back = QPushButton(back_text)
         nxt = QPushButton(next_text)
         nxt.setObjectName("primary")
+        fixed_width(BUTTON_WIDTH, back, nxt)  # Side by side, so the same size.
         for button in (back, nxt):
-            button.setFixedWidth(BUTTON_WIDTH)  # Side by side, so the same size.
             button.setAutoDefault(False)
             buttons.addWidget(button)
         self.layout_.addLayout(buttons)
@@ -363,7 +363,7 @@ class SetupWizard(QDialog):
         tools_text.setWordWrap(True)
         tools.addWidget(tools_text, 1)
         browse = QPushButton("Choose folder…")
-        browse.setFixedWidth(BUTTON_WIDTH)
+        fixed_width(BUTTON_WIDTH, browse)
         browse.clicked.connect(self._choose_tools_folder)
         tools.addWidget(browse)
         page.add(self.tools_row)
@@ -532,7 +532,7 @@ class SetupWizard(QDialog):
         self.web_file = QLineEdit()
         file_row.addWidget(self.web_file)
         browse = QPushButton("Browse…")
-        browse.setFixedWidth(BUTTON_WIDTH)
+        fixed_width(BUTTON_WIDTH, browse)
         browse.clicked.connect(self._choose_backup)
         file_row.addWidget(browse)
         file_layout.addLayout(file_row)
@@ -754,7 +754,7 @@ class SetupWizard(QDialog):
         self.copy_button = QPushButton("  Copy words")
         theme.set_icon(self.copy_button, lambda: copy_icon("#AEB8CC"))
         self.copy_button.setIconSize(QSize(14, 14))
-        self.copy_button.setFixedWidth(BUTTON_WIDTH)
+        fixed_width(BUTTON_WIDTH, self.copy_button)
         self.copy_button.setAutoDefault(False)
         self.copy_button.clicked.connect(self._copy_words)
         row.addWidget(self.copy_button)
@@ -1058,7 +1058,6 @@ class SetupWizard(QDialog):
         self.existing_file.textChanged.connect(self._existing_file_changed)
         row.addWidget(self.existing_file)
         browse = QPushButton("Browse…")
-        browse.setFixedWidth(BUTTON_WIDTH)
         browse.clicked.connect(self._choose_existing_file)
         row.addWidget(browse)
         panel.addLayout(row)
@@ -1070,7 +1069,7 @@ class SetupWizard(QDialog):
         self.existing_node = QLineEdit()
         node_row.addWidget(self.existing_node)
         official = QPushButton("Use Official RPC")
-        official.setFixedWidth(BUTTON_WIDTH)
+        fixed_width(BUTTON_WIDTH, browse, official)  # One above the other, so the boxes beside them line up.
         official.clicked.connect(lambda: self.existing_node.setText(OFFICIAL_RPC))
         node_row.addWidget(official)
         panel.addLayout(node_row)

@@ -80,6 +80,16 @@ def same_width(*buttons: QPushButton) -> None:
         button.setMinimumWidth(width)
 
 
+def fixed_width(width: int, *buttons: QPushButton) -> None:
+    """Give buttons one fixed width: `width`, or more where the words need it. Linux has no Segoe UI,
+    and the fonts it uses instead are wider, so a width that fits on Windows can cut the words off."""
+    for button in buttons:
+        button.ensurePolished()
+    width = max([width] + [button.sizeHint().width() for button in buttons])
+    for button in buttons:
+        button.setFixedWidth(width)
+
+
 def shorten_address(address: str) -> str:
     """Show the start and end of a long address. The full one is kept for its tooltip."""
     return address if len(address) <= 34 else f"{address[:20]}...{address[-10:]}"

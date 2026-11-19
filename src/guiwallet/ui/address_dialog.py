@@ -5,7 +5,7 @@ from PySide6.QtWidgets import QHBoxLayout, QLineEdit, QPushButton, QWidget
 
 from guiwallet.core.labels import MAX_LABEL_LENGTH
 from guiwallet.ui.compound_dialog import BUTTON_WIDTH, _FramedDialog
-from guiwallet.ui.widgets import CopyIconButton, label
+from guiwallet.ui.widgets import CopyIconButton, fixed_width, label
 
 
 class AddAddressDialog(_FramedDialog):
@@ -54,7 +54,7 @@ class AddAddressDialog(_FramedDialog):
         self.add_button.clicked.connect(self._add_clicked)
         self.done_button = QPushButton("Done")
         self.done_button.setObjectName("primary")
-        self.done_button.setFixedWidth(BUTTON_WIDTH)
+        fixed_width(BUTTON_WIDTH, self.done_button)
         self.done_button.setAutoDefault(False)
         self.done_button.clicked.connect(self.accept)
         # The buttons' row is the dialog's last layout; Done takes the place of Cancel and Add.

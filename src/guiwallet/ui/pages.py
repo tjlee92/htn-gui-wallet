@@ -3,7 +3,8 @@
 from decimal import Decimal
 from pathlib import Path
 
-from PySide6.QtCore import QSize, Qt, Signal
+from PySide6.QtCore import QSize, Qt, QTimer, Signal
+from PySide6.QtGui import QFont, QFontMetrics
 from PySide6.QtWidgets import (
     QButtonGroup,
     QCheckBox,
@@ -49,6 +50,7 @@ from guiwallet.ui.widgets import (
     card,
     cycle_icon,
     divider,
+    fixed_width,
     label,
     official_rpc_hint,
     page_layout,
@@ -81,6 +83,8 @@ def _scroll_area(content: QWidget) -> QScrollArea:
 
 
 SEND_TAB_WIDTH = 170  # Both tabs, so that they match.
+QR_ADDRESS_FONT_SIZES = (13, 12, 11, 10)  # 13 is the theme's size for addresses.
+COLUMN_GAPS = (28, 24, 20, 16, 12, 8)  # The Wallet page's, widest first: narrower only when the table won't fit.
 ALL_SPENDABLE_STYLE = "color: #B5F27A; font-weight: 600; background: #0A0F1C; border-color: #8BE83A;"
 
 
@@ -207,7 +211,7 @@ class WalletPage(QWidget):
         content_layout.setContentsMargins(0, 0, 8, 0)
         content_layout.setSpacing(10)
         self.table = QGridLayout()
-        self.table.setHorizontalSpacing(28)
+        self.table.setHorizontalSpacing(COLUMN_GAPS[0])
         self.table.setVerticalSpacing(9)
         self.table.setColumnStretch(0, 1)
         content_layout.addLayout(self.table)
@@ -215,7 +219,8 @@ class WalletPage(QWidget):
         self.message.setWordWrap(True)
         content_layout.addWidget(self.message)
         content_layout.addStretch()
-        panel_layout.addWidget(_scroll_area(content))
+        self.scroll = _scroll_area(content)
+        panel_layout.addWidget(self.scroll)
         layout.addWidget(panel, stretch=1)
 
         self._add_column_headings()
@@ -223,13 +228,24 @@ class WalletPage(QWidget):
 
         # Beside the title, top right; placed in resizeEvent.
         self.add_button = QPushButton("+  Add new address", self)
-        self.add_button.setFixedWidth(170)
+        fixed_width(170, self.add_button)
         self.add_button.setToolTip("Make the next receiving address of this wallet")
         self.add_button.clicked.connect(self.add_address_clicked)
 
     def resizeEvent(self, event) -> None:
         super().resizeEvent(event)
         self.add_button.move(self.width() - 32 - self.add_button.width(), 34)
+        QTimer.singleShot(0, self._fit_columns)  # Once the table has its new width.
+
+    def _fit_columns(self) -> None:
+        """Narrow the gaps between the columns when the table doesn't fit, which would cut the addresses
+        off. Linux has no Segoe UI or Consolas, and the fonts it uses instead are wider."""
+        room = self.scroll.viewport().width() - 8  # The table's right margin.
+        self.table.invalidate()  # Changed text is otherwise only measured on the next layout pass.
+        for spacing in COLUMN_GAPS:
+            self.table.setHorizontalSpacing(spacing)
+            if self.table.minimumSize().width() <= room:
+                break
 
     @staticmethod
     def _stat_card(title: str, value: QLabel) -> QFrame:
@@ -287,6 +303,7 @@ class WalletPage(QWidget):
             self.table.addWidget(divider(), row + 1, 0, 1, len(self.COLUMNS))
             row += 2
         self._show_compounds()
+        QTimer.singleShot(0, self._fit_columns)  # New rows only count once Qt has shown them.
 
     def show_compounds(self, compounds: list[RunningCompound]) -> None:
         """Mark each address that has an auto-compound running, wherever it was started."""
@@ -360,6 +377,7 @@ class WalletPage(QWidget):
             self._show_amount(total, entry.available + entry.pending)
             count = snapshot.coins.by_address.get(entry.address, 0) if snapshot.coins else 0
             utxos.setText(f"{count:,}" if snapshot.coins else "—")
+        QTimer.singleShot(0, self._fit_columns)  # Longer amounts can need the room.
 
     def show_labels(self) -> None:
         for address, editor in self.label_editors.items():
@@ -410,10 +428,10 @@ class SendPage(QWidget):
         for tab in (self.own_tab, self.other_tab):
             tab.setObjectName("sendTab")
             tab.setCheckable(True)
-            tab.setFixedWidth(SEND_TAB_WIDTH)
             tab.toggled.connect(self._tab_toggled)
             self.tab_group.addButton(tab)
             tabs_row.addWidget(tab)
+        fixed_width(SEND_TAB_WIDTH, self.own_tab, self.other_tab)
         layout.addWidget(tabs, alignment=Qt.AlignmentFlag.AlignLeft)
         layout.addSpacing(10)
 
@@ -940,7 +958,16 @@ class ReceivePage(QWidget):
         self.current_address = address
         self.qr.set_text(address)
         # An address has no spaces to wrap at, so it's split into lines for display only.
-        self.selected.setText("\n".join(address[i : i + 34] for i in range(0, len(address), 34)))
+        lines = [address[i : i + 34] for i in range(0, len(address), 34)]
+        self.selected.setText("\n".join(lines))
+        # As wide as the QR code. Linux's stand-in for Consolas is wider, so it may need smaller text.
+        self.selected.ensurePolished()  # Its font comes from the style sheet.
+        font = QFont(self.selected.font())
+        for size in QR_ADDRESS_FONT_SIZES:
+            font.setPixelSize(size)
+            if max(QFontMetrics(font).horizontalAdvance(line) for line in lines) <= self.selected.width():
+                break
+        self.selected.setStyleSheet(f"QLabel#address {{ font-size: {size}px; }}")
         for known, row in self.rows_by_address.items():
             row.setObjectName("selectedCard" if known == address else "card")
             row.style().unpolish(row)
@@ -1043,7 +1070,7 @@ class SettingsPage(QWidget):
         wizard_text.addWidget(wizard_note)
         wizard_row.addLayout(wizard_text, 1)
         self.wizard_button = QPushButton("Open Setup Wizard")
-        self.wizard_button.setFixedWidth(150)
+        fixed_width(150, self.wizard_button)
         self.wizard_button.clicked.connect(self.wizard_requested)
         wizard_row.addWidget(self.wizard_button)
         layout.addWidget(wizard)

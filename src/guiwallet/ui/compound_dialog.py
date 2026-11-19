@@ -25,7 +25,7 @@ from guiwallet.core.compound import (
 from guiwallet.core.validation import InvalidInput, validate_password
 from guiwallet.ui.send_dialog import _add_detail, _selectable
 from guiwallet.ui.theme import app_icon
-from guiwallet.ui.widgets import TitleBar, label, shorten_address
+from guiwallet.ui.widgets import TitleBar, fixed_width, label, shorten_address
 
 BUTTON_WIDTH = 130
 
@@ -72,8 +72,8 @@ class _FramedDialog(QDialog):
         action = QPushButton(action_text)
         action.setObjectName("primary")
         action.setAutoDefault(False)
+        fixed_width(BUTTON_WIDTH, cancel, action)  # Side by side, so the same size.
         for button in (cancel, action):
-            button.setFixedWidth(BUTTON_WIDTH)  # Side by side, so the same size.
             row.addWidget(button)
         self.layout_.addWidget(self.error)
         self.layout_.addSpacing(4)
