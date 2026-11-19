@@ -20,6 +20,23 @@ def label(text: str = "", name: str | None = None) -> QLabel:
     return widget
 
 
+def warn_box(text: str, width: int) -> QLabel:
+    """An amber notice that is always tall enough for its text at the given width.
+
+    QLabel works out its wrapped height without the style sheet's padding and border, so with wider fonts
+    (as on Linux) the last lines were cut off. The sizes here match QLabel#warnBox in the theme.
+    """
+    box = label(text, "warnBox")
+    box.setWordWrap(True)
+    box.setFixedWidth(width)
+    box.ensurePolished()  # Picks up the style sheet's font size before measuring.
+    padding_x, padding_y, border = 12, 10, 1
+    inner = QRect(0, 0, width - 2 * (padding_x + border), 0)
+    text_height = box.fontMetrics().boundingRect(inner, Qt.TextFlag.TextWordWrap, text).height()
+    box.setFixedHeight(text_height + 2 * (padding_y + border) + 2)
+    return box
+
+
 OFFICIAL_RPC_HINT = "The fastest synced public node is picked at each start. Public nodes see your addresses."
 
 

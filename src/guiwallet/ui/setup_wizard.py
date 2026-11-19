@@ -68,7 +68,7 @@ from guiwallet.ui.background import run_in_background
 from guiwallet.ui.compound_dialog import _FramedDialog
 from guiwallet.ui import theme
 from guiwallet.ui.theme import AMBER, GREEN, RED, app_icon
-from guiwallet.ui.widgets import StatusDot, TitleBar, copy_icon, label, official_rpc_hint, shorten_address
+from guiwallet.ui.widgets import StatusDot, TitleBar, copy_icon, label, official_rpc_hint, shorten_address, warn_box
 
 BUTTON_WIDTH = 130
 COLUMN_WIDTH = 600
@@ -243,13 +243,12 @@ class ExistingWalletDialog(_FramedDialog):
         path = label(str(existing), "fullAddress")
         path.setWordWrap(True)
         self.layout_.addWidget(path)
-        warning = label(
+        warning = warn_box(
             f"It won't be deleted or overwritten. The new wallet is saved as {new_file.name} beside it, and the "
             "app switches to it. To go back, choose the old file in Settings, Wallet file.\n\n"
             "Make sure you have the seed phrase of your current wallet before going on.",
-            "warnBox",
+            540 - 2 - 48,  # The dialog less its 1px frame and 24px margins.
         )
-        warning.setWordWrap(True)
         self.layout_.addWidget(warning)
         _cancel, proceed = self._buttons("Cancel", "Continue")
         proceed.clicked.connect(self.accept)
@@ -737,12 +736,11 @@ class SetupWizard(QDialog):
             "Write down your seed phrase",
             "These 24 words are your wallet. Anyone who has them can take your coins.",
         )
-        warning = label(
+        warning = warn_box(
             "Write them on paper, in order, and keep it somewhere safe. Don't take a screenshot or save them on "
             "this PC. If you lose them and this PC fails, the coins are gone for good.",
-            "warnBox",
+            COLUMN_WIDTH,
         )
-        warning.setWordWrap(True)
         page.add(warning, 12)
         self.seed_grid = QGridLayout()
         self.seed_grid.setHorizontalSpacing(10)
